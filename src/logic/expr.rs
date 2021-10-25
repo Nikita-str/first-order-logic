@@ -11,7 +11,7 @@ struct PredicateExpr<N: Name>{
 }
 
 impl<N: Name> PredicateExpr<N>{
-    pub fn most_comon_unifier(p1: Self, p2: Self) -> Option<Substitution<N>>{
+    pub fn most_comon_unifier(p1: &Self, p2: &Self) -> Option<Substitution<N>>{
         if p1.params.len() != p2.params.len() || p1.name != p2.name { return None }
         if p1.params.len() == 0 { return Some(Substitution::new_empty()) }
 
@@ -25,8 +25,12 @@ impl<N: Name> PredicateExpr<N>{
             lines: Vec<Line<N0>>,
         }
 
+        let mut lines = Lines{cur_ind: 0, lines: vec![] };
+        for (t1, t2) in p1.params.into_iter().zip(p2.params.into_iter()) {
+            lines.lines.push(Line{ left: t1, right: t2 });
+        }
 
-
+        todo!()
 
     }
 }

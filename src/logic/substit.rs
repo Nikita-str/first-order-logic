@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ops::Mul};
+use std::{collections::HashMap, ops::Mul, rc::Rc};
 
 use crate::common::name::Name;
 use super::terms::{Term, VarTerm};
@@ -18,8 +18,12 @@ impl<N: Name> SubstitutionApply<Term<N>> for Substitution<N>{
     fn apply(&self, term: &mut Term<N>){
         match term {
             Term::Const(_) => return,
-            Term::Func(f) => f.get_params_mut().into_iter().for_each(|new_term| self.apply(new_term)),
-            Term::Var(v) => { if let Some(subst_term) = self.substs.get(v){ *term = subst_term.clone() } }
+            Term::Func(f) => f.as_ref().borrow_mut().get_params_mut().into_iter().for_each(|new_term| self.apply(new_term)),
+            Term::Var(v) => { 
+                let new_val = 
+                    if let Some(subst_term) = self.substs.get(&v.as_ref().borrow()) { Some(subst_term.clone()) } else { None };
+                if new_val.is_some() { *term = new_val.unwrap(); } 
+            }
         }
     }
 }

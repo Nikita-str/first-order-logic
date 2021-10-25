@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{cell::RefCell, rc::Rc};
 
 use crate::common::name::Name;
 
@@ -16,21 +16,21 @@ pub struct FuncTerm<N: Name>{
 
 impl<N: Name> FuncTerm<N>{
     pub fn get_params(&self) -> &Vec<Term<N>>{ &self.params }
-    pub fn get_params_mut(&self) -> &mut Vec<Term<N>>{ &mut self.params }
+    pub fn get_params_mut(&mut self) -> &mut Vec<Term<N>>{ &mut self.params }
 }
 
 pub enum Term<N: Name>{
-    Const(Rc<ConstTerm<N>>),
-    Var(Rc<VarTerm<N>>),
-    Func(Rc<FuncTerm<N>>),
+    Const(Rc<RefCell<ConstTerm<N>>>),
+    Var(Rc<RefCell<VarTerm<N>>>),
+    Func(Rc<RefCell<FuncTerm<N>>>),
 }
 
 impl<N: Name> Term<N>{
     fn new_from_other(other: &Self) -> Self{
         match  other {
-            Term::Const(rc) => { let const_term = **rc; Term::Const(Rc::new(const_term.clone())) },
-            Term::Var(rc) => { let const_term = **rc; Term::Var(Rc::new(const_term.clone())) },
-            Term::Func(rc) => { let const_term = **rc; Term::Func(Rc::new(const_term.clone())) },
+            Term::Const(rc) => { let const_term = &**rc; Term::Const(Rc::new(const_term.clone())) },
+            Term::Var(rc) => { let const_term = &**rc; Term::Var(Rc::new(const_term.clone())) },
+            Term::Func(rc) => { let const_term = &**rc; Term::Func(Rc::new(const_term.clone())) },
         }
     }
 }
