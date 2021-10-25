@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{borrow::Borrow, cell::{Ref, RefCell}, rc::Rc};
 
 use crate::common::name::Name;
 
@@ -15,9 +15,11 @@ pub struct FuncTerm<N: Name>{
 }
 
 impl<N: Name> FuncTerm<N>{
+    pub fn get_name(&self) -> &N { &self.name }
     pub fn get_params(&self) -> &Vec<Term<N>>{ &self.params }
     pub fn get_params_mut(&mut self) -> &mut Vec<Term<N>>{ &mut self.params }
 }
+
 
 pub enum Term<N: Name>{
     Const(Rc<RefCell<ConstTerm<N>>>),
@@ -26,11 +28,31 @@ pub enum Term<N: Name>{
 }
 
 impl<N: Name> Term<N>{
-    fn new_from_other(other: &Self) -> Self{
+    pub fn is_const(&self) -> bool { if let Term::Const(_) = self { true } else { false } }
+    pub fn get_const(&self) -> Ref<ConstTerm<N>> { 
+        if let Term::Const(rc) = self { Rc::as_ref(rc).borrow() } 
+        else { panic!("term is not const") } 
+    }
+
+    pub fn is_func(&self) -> bool { if let Term::Func(_) = self { true } else { false } }
+    pub fn get_func(&self) -> Ref<FuncTerm<N>> { 
+        if let Term::Func(rc) = self { Rc::as_ref(rc).borrow() } 
+        else { panic!("term is not func") } 
+    }
+    pub fn func_size(&self) -> usize { self.get_func().params.len() }
+
+    pub fn is_var(&self) -> bool { if let Term::Var(_) = self { true } else { false } }
+    pub fn get_var(&self) -> Ref<VarTerm<N>> { 
+        if let Term::Var(rc) = self { Rc::as_ref(rc).borrow() } 
+        else { panic!("term is not var") } 
+    }
+
+
+    pub fn new_from_other(other: &Self) -> Self{
         match  other {
-            Term::Const(rc) => { let const_term = &**rc; Term::Const(Rc::new(const_term.clone())) },
-            Term::Var(rc) => { let const_term = &**rc; Term::Var(Rc::new(const_term.clone())) },
-            Term::Func(rc) => { let const_term = &**rc; Term::Func(Rc::new(const_term.clone())) },
+            Term::Const(rc) => { Term::Const(Rc::new(RefCell::new(rc.as_ref().borrow().clone()))) },
+            Term::Func(rc) => { Term::Func(Rc::new(RefCell::new(rc.as_ref().borrow().clone()))) },
+            Term::Var(rc) => { Term::Var(Rc::new(RefCell::new(rc.as_ref().borrow().clone()))) },
         }
     }
 }
