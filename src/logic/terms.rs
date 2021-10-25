@@ -47,6 +47,17 @@ impl<N: Name> Term<N>{
         else { panic!("term is not var") } 
     }
 
+    pub fn contain(&self, find_term: &Self) -> bool{
+        let func_params_contain = || self.get_func().get_params().into_iter().any(|small_term|small_term.contain(find_term));
+
+        match (self, find_term) {
+            (Term::Func(_), Term::Func(_)) => self == find_term || func_params_contain(),
+            (Term::Func(_), _) => func_params_contain(),
+            (Term::Const(_), Term::Const(_)) | (Term::Var(_), Term::Var(_)) => self == find_term,
+            (Term::Const(_), _) | (Term::Var(_), _) => false,
+        }
+    }
+
 
     pub fn new_from_other(other: &Self) -> Self{
         match  other {
