@@ -1,17 +1,17 @@
 use std::{collections::{HashMap}, hash::Hash};
-use crate::logic::terms::{ConstTerm, Term, VarTerm};
+use crate::logic::{term_type::TermType, terms::{ConstTerm, Term, VarTerm}};
 
-use super::name::{Name, NameType};
+use super::name::{Name};
 
 
 /// 'T': top lvl name  
 /// 'N': name
-pub struct NameHolder<'a, N: Name, T: UnivocalClassify<NameType> + Hash + Eq>{
-    terms: HashMap<NameType, HashMap<&'a T, Term<N>>>,
-    last_names: HashMap<NameType, N>,
+pub struct NameHolder<'a, N: Name, T: UnivocalClassify<TermType> + Hash + Eq>{
+    terms: HashMap<TermType, HashMap<&'a T, Term<N>>>,
+    last_names: HashMap<TermType, N>,
 }
 
-impl<'a, N: Name, T: UnivocalClassify<NameType> + Hash + Eq> NameHolder<'a, N, T>{
+impl<'a, N: Name, T: UnivocalClassify<TermType> + Hash + Eq> NameHolder<'a, N, T>{
     pub fn get_term_for(&mut self, top_level_name: &'a T) -> Term<N>{
         let name_type = top_level_name.classify();
         let map = self.terms.get_mut(&name_type).unwrap();
@@ -21,8 +21,8 @@ impl<'a, N: Name, T: UnivocalClassify<NameType> + Hash + Eq> NameHolder<'a, N, T
             let last_name = self.last_names.get(&name_type).unwrap().next_tst_name();
             self.last_names.insert(name_type, last_name.clone());
             let term = match name_type {
-                NameType::Const => Term::new_const(ConstTerm{ name: last_name }),
-                NameType::Var => Term::new_var(VarTerm{ name: last_name }),
+                TermType::Const => Term::new_const(ConstTerm{ name: last_name }),
+                TermType::Var => Term::new_var(VarTerm{ name: last_name }),
                 _ => todo!() // NEED: Multilevel
             };
             map.insert(top_level_name, term.clone());
