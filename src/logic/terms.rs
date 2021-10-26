@@ -29,6 +29,7 @@ pub enum Term<N: Name>{
     Func(Rc<RefCell<FuncTerm<N>>>),
 }
 
+
 impl<N: Name> Term<N>{
     pub fn new_const(const_term: ConstTerm<N>) -> Self{ Self::Const(Rc::new(RefCell::new(const_term))) }
     pub fn new_func(func_term: FuncTerm<N>) -> Self{ Self::Func(Rc::new(RefCell::new(func_term))) }
