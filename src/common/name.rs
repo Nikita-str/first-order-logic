@@ -1,6 +1,6 @@
-use std::hash::Hash;
+use std::{hash::Hash, fmt};
 
-#[derive(PartialEq, Eq, Clone, Copy)]
+#[derive(PartialEq, Eq, Hash, Clone, Copy)]
 pub enum NameType{
     Const,
     Var,
@@ -9,11 +9,11 @@ pub enum NameType{
 }
 
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Hash, Clone)]
 pub struct StdName{
-    name_type: NameType,
-    name: usize,
-    index: usize,
+    pub name_type: NameType,
+    pub name: usize,
+    pub index: usize,
 }
 
 impl StdName{
@@ -28,9 +28,26 @@ impl StdName{
 }
 
 
+impl Name for StdName {}
 
 pub trait Name where Self: Eq + Clone + Hash{
+    /*
     fn name_type(&self) -> NameType;
     fn next_index(&self) -> Self;
     fn new(name_type: NameType) -> Self;
+    */
+}
+
+
+
+impl fmt::Display for StdName{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { 
+        match self.name_type {
+            NameType::Const => write!(f, "c")?, 
+            NameType::Var => write!(f, "X")?, 
+            NameType::Func => write!(f, "f")?, 
+            NameType::Pred => write!(f, "P")?, 
+        }
+        write!(f, "[{}][i:{}]", self.name, self.index)
+    }
 }

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ops::Mul, rc::Rc};
+use std::{collections::HashMap, fmt};
 
 use crate::common::name::Name;
 use super::terms::{Term, VarTerm};
@@ -6,6 +6,7 @@ use super::terms::{Term, VarTerm};
 pub struct Substitution<N: Name>{
     substs: HashMap<VarTerm<N>, Term<N>>
 }
+
 
 impl<N: Name> Substitution<N>{
     pub fn new_empty() -> Self{ Self{ substs: HashMap::new() } }
@@ -47,3 +48,13 @@ impl<N: Name> SubstitutionApply<Substitution<N>> for Substitution<N>{
 pub trait SubstitutionApply<O>{ fn apply(&self, other: &mut O); }
 
 
+
+
+
+impl<N: Name> fmt::Display for Substitution<N> where N: fmt::Display{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{{  ")?;
+        for subst in &self.substs { write!(f, "{}/{}  ", subst.0, subst.1)?; }
+        write!(f, "}}")
+    }
+}
