@@ -2,6 +2,7 @@ use std::{collections::LinkedList};
 use crate::{common::name::Name, logic::substit::{Substitution, SubstitutionApply}};
 use super::terms::Term;
 
+#[derive(Debug)]
 pub struct PredicateExpr<N: Name>{
     pub name: N,
     pub params: Vec<Term<N>>,

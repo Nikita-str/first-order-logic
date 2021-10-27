@@ -3,6 +3,7 @@ use crate::{common::name::Name};
 use super::{operations::{BinaryOperations, UnaryOperations}, predicate_expr::PredicateExpr, quants::Quants, terms::Term};
 
 
+#[derive(Debug)]
 pub struct UnaryOpExpr<N: Name>{
     op: UnaryOperations,
     formula: Expr<N>,  
@@ -11,6 +12,7 @@ impl<N:Name> UnaryOpExpr<N>{
     pub fn new(op: UnaryOperations, formula: Expr<N>) -> Self { Self { op, formula } }
 }
 
+#[derive(Debug)]
 pub struct BinaryOpExpr<N: Name>{
     op: BinaryOperations,
     left_formula: Expr<N>,  
@@ -21,6 +23,7 @@ impl<N:Name> BinaryOpExpr<N>{
     { Self { op, left_formula: left, right_formula: right } }
 }
 
+#[derive(Debug)]
 pub struct ExprQuant<N: Name>{
     quant: Quants,
     var_name: N,
@@ -30,6 +33,7 @@ impl<N:Name> ExprQuant<N>{
     pub fn new(q: Quants, var_name: N, expr: Expr<N>) -> Self { Self { quant: q, var_name, expr } }
 }
 
+#[derive(Debug)]
 pub enum Expr<N: Name>{
     Empty,
     Predicate(Rc<PredicateExpr<N>>),

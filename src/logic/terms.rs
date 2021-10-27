@@ -3,14 +3,14 @@ use std::{fmt, cell::{Ref, RefCell}, rc::Rc};
 use crate::common::name::Name;
 
 
-#[derive(PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, Clone, Debug)]
 pub struct ConstTerm<N: Name>{ pub name: N }
 
 
-#[derive(PartialEq, Eq, Hash, Clone)]
+#[derive(PartialEq, Eq, Hash, Clone, Debug)]
 pub struct VarTerm<N: Name>{ pub name: N }
 
-#[derive(PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, Clone, Debug)]
 pub struct FuncTerm<N: Name>{
     pub name: N,
     pub params: Vec<Term<N>>,
@@ -23,6 +23,7 @@ impl<N: Name> FuncTerm<N>{
 }
 
 
+#[derive(Debug)]
 pub enum Term<N: Name>{
     Const(Rc<RefCell<ConstTerm<N>>>),
     Var(Rc<RefCell<VarTerm<N>>>),

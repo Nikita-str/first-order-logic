@@ -116,10 +116,17 @@ pub struct ParseStr<'s>{
 
 pub fn parse<N:Name, T: PpeTesteable + Hash + Eq, I: Iterator<Item = T>>
 (parser_rs: &ParserRuleset<T>, tokens: &mut I) 
-//-> Option<Expr<N>>{
-    {
+-> Option<Expr<N>>{
     let mut name_holder = NameHolder::<N, T>::new();
-    _parse(parser_rs, tokens, ParserParam::new(& mut name_holder));
+    let expr = _parse(parser_rs, tokens, ParserParam::new(& mut name_holder));
+    
+    match expr {
+        ParserRet::Expr(expr) => Some(expr),
+        _ => { 
+            // TODO: INFORM ABOUT ERROR 
+            None 
+        }
+    }
 }
 
 struct ParserParam<'a, N:Name, T:Hash + Eq>{

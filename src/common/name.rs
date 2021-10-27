@@ -2,7 +2,7 @@ use std::{hash::Hash, fmt};
 
 use crate::logic::term_type::TermType;
 
-#[derive(PartialEq, Eq, Hash, Clone)]
+#[derive(PartialEq, Eq, Hash, Clone, Debug)]
 pub struct StdName{
     pub name_type: TermType,
     pub name: usize,

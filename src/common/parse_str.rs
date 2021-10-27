@@ -123,6 +123,7 @@ impl<'a> ExactTesteable for ParseStr<'a>{
 
 #[cfg(test)]
 mod parse_str_test{
+    use crate::common::{name::StdName, parse};
     use super::ParseStr;
 
     fn test_help(ps: ParseStr, expects: Vec<&str>){
@@ -144,5 +145,19 @@ mod parse_str_test{
             ParseStr::new("∃∃ ||| &&& ---> wow_so_cool_name_101 25x25 (())"),
             vec!["∃", "∃", " ", "|||", " ", "&&&", " ", "--->", " ", "wow_so_cool_name_101", " ", "25", "x25", " ", "(", "(", ")", ")"],
         );
+    }
+
+    #[test]
+    fn parse_test(){
+        let ruleset = ParseStr::create_std_ruleset();
+        let ps = ParseStr::new("∃x∀y P(x,y)   →∀yi∃x    P(x,  yi)");
+        let expr = parse::parse::<StdName, _, _>(&ruleset, &mut ps.into_iter());
+
+        match expr {
+            None => println!("NONE :("),
+            Some(expr) => {
+                println!("EXPR : {:?}", expr)
+            }
+        }
     }
 }
