@@ -15,7 +15,7 @@ pub enum AllSymbs{
     Syntax(SyntaxSymbs),
 
     Empty, // Space and so on
-    //End, // only in end of 
+    //End, 
 }
 pub const SYMBS_AMOUNT:usize = 1 + SYNTAX_SYMBS_AMOUNT + OP_TYPE_AMOUNT + QUANTS_TYPE_AMOUNT + TERM_TYPE_AMOUNT;
 

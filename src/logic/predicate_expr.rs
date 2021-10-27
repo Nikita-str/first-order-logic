@@ -7,6 +7,10 @@ pub struct PredicateExpr<N: Name>{
     pub params: Vec<Term<N>>,
 }
 
+impl<N: Name> PredicateExpr<N>{
+    pub fn new(name: N, params: Vec<Term<N>>) -> Self{ Self{name, params} }
+}
+
 impl<N: Name + std::fmt::Display> PredicateExpr<N>{
     pub fn most_comon_unifier<'a>(p1: &Self, p2: &Self) -> Option<Substitution<N>>{
         if p1.params.len() != p2.params.len() || p1.name != p2.name { return None }

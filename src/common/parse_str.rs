@@ -1,6 +1,6 @@
 use std::{collections::{HashMap, HashSet}, hash::Hash};
 
-use crate::logic::{all_symbs::{AllSymbs, SYMBS_AMOUNT}, expr::Expr, operations::{BinaryOperations, Operations, UnaryOperations}, quants::Quants, syntax_symbs::SyntaxSymbs, term_type::TermType, terms::Term};
+use crate::logic::{all_symbs::{AllSymbs, SYMBS_AMOUNT}, expr::Expr, operations::{BinaryOperations, Operations, UnaryOperations}, predicate_expr::PredicateExpr, quants::Quants, syntax_symbs::SyntaxSymbs, term_type::TermType, terms::Term};
 
 use super::{name::Name, name_holder::NameHolder};
 //use super::parse_info::Fit;
@@ -296,44 +296,52 @@ fn _parse<N:Name, T: PpeTesteable + Eq + Hash, I: Iterator<Item = T>>
                         |y|y.apply_quant(qua, x)
                     )
                 ),
-            AllSymbs::Term(TermType::Var) => 
-                ParserRet::new_name(pp.name_holder.get_name(TermType::Var, token)),
-            AllSymbs::Term(TermType::Const) => 
-                ParserRet::new_name(pp.name_holder.get_name(TermType::Const, token)),
-            AllSymbs::Term(TermType::Func) => {
-                let func_name = pp.name_holder.get_name(TermType::Func, token);
-
-                let open_br = _parse(parser_rs, tokens, pp.symb_await(token_type, AllSymbs::Syntax(SyntaxSymbs::OpenBr)));
-                if !(open_br.is_expr() && open_br.get_expr().is_empty()) { return ParserRet::new_bad() }
-
-                let mut first = true;
-                let mut terms = Vec::new();
-                loop{
-                    let name = _parse(parser_rs, tokens, pp.new_after_pred_or_func(token_type, first));
-                    if name.is_bad() { return name }
-                    if name.is_name() { 
-                        let name = name.get_name();
-
-                        if name.name_type() == TermType::Const {
-                            terms.push(pp.name_holder.get_const_term(&name))
-                        } else if name.name_type() == TermType::Var {
-                            terms.push(pp.name_holder.get_var_term(&name))
-                        } else {
-                            panic!("we cant get that type of name!")
+            AllSymbs::Term(term_type) => {
+                let obj_name = pp.name_holder.get_name(term_type, token);
+                match term_type{
+                    TermType::Var | TermType::Const => ParserRet::new_name(obj_name),
+                    _ => {
+                        // after Func/Pred name stay always '(' :
+                        let open_br = _parse(
+                            parser_rs, 
+                            tokens, 
+                            pp.symb_await(token_type, AllSymbs::Syntax(SyntaxSymbs::OpenBr))
+                        );
+                        if !(open_br.is_expr() && open_br.get_expr().is_empty()) { return ParserRet::new_bad() }
+                      
+                        let mut first = true;
+                        let mut terms = Vec::new();  
+                        loop{
+                            let name = _parse(parser_rs, tokens, pp.new_after_pred_or_func(token_type, first));
+                            if name.is_bad() { return name }
+                            if name.is_name() { 
+                                let name = name.get_name();
+        
+                                if name.name_type() == TermType::Const {
+                                    terms.push(pp.name_holder.get_const_term(&name))
+                                } else if name.name_type() == TermType::Var {
+                                    terms.push(pp.name_holder.get_var_term(&name))
+                                } else {
+                                    panic!("we cant get that type of name!")
+                                }
+                            } else if name.is_term() { 
+                                terms.push(name.get_term()) 
+                            } else if name.is_expr(){ // empty expr when ')'
+                                 let expr = name.get_expr();
+                                 if !expr.is_empty() { panic!("we cant take such type of expr!") }
+                                 if term_type == TermType::Func{
+                                    return ParserRet::new_term(Term::new_func_by_param(obj_name, terms))
+                                 } else {
+                                    return ParserRet::new_expr(Expr::new_predicate(obj_name, terms))
+                                    //here must be contniue?
+                                 }
+                            }
+                            first = false;
                         }
-                    } else if name.is_term() { 
-                        terms.push(name.get_term()) 
-                    } else if name.is_expr(){  
-                         let expr = name.get_expr();
-                         if !expr.is_empty() { panic!("we cant take such type of expr!") }
-                         return ParserRet::new_term(Term::new_func_by_param(func_name, terms))
                     }
-                    first = false;
                 }
             }
-            AllSymbs::Term(TermType::Pred) => {
-                
-            }
+            
             AllSymbs::Syntax(SyntaxSymbs::Comma) => {
                 pp.set_can_term();
                 continue

@@ -1,6 +1,6 @@
 use std::rc::Rc;
 use crate::{common::name::Name};
-use super::{operations::{BinaryOperations, UnaryOperations}, predicate_expr::PredicateExpr, quants::Quants};
+use super::{operations::{BinaryOperations, UnaryOperations}, predicate_expr::PredicateExpr, quants::Quants, terms::Term};
 
 
 pub struct UnaryOpExpr<N: Name>{
@@ -49,5 +49,9 @@ impl<N:Name> Expr<N>{
     }
     pub fn apply_quant(self, quant: Quants, var_name: N) -> Self {
         Expr::Quant(Rc::new(ExprQuant::new(quant, var_name, self))) 
+    }
+
+    pub fn new_predicate(name: N, params: Vec<Term<N>>) -> Self{
+        Expr::Predicate(Rc::new(PredicateExpr::new(name, params)))
     }
 }
