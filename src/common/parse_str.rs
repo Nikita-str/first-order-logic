@@ -114,24 +114,59 @@ pub struct ParseStr<'s>{
 */
 
 pub fn parse<N:Name, T: PpeTesteable, I: Iterator<Item = T>>(parser_rs: &ParserRuleset<T>, tokens: &mut I) -> Option<Expr<N>>{
-    _parse(parser_rs, tokens, 0, None)
+    _parse(parser_rs, tokens, ParserParam::new())
 }
 
-fn _parse<N:Name, T: PpeTesteable, I: Iterator<Item = T>>
-(parser_rs: &ParserRuleset<T>, tokens: &mut I, lvl: i32, pred_token_type: Option<AllSymbs>) 
--> Option<Expr<N>>{    
-    let mut can_be_next = HashSet::new();
+struct ParserParam{
+    pub lvl: usize,
+    //prev_token_type: Option<AllSymbs>,
+    pub can_be_next: HashSet<AllSymbs>,
+    pub need_parse_len: Option<usize>
+}
+impl ParserParam{
+    fn new_with_lvl(lvl: usize) -> Self{
+        let mut can_be_next = HashSet::new();
 
-    can_be_next.insert(AllSymbs::Op(Operations::Unary(UnaryOperations::Not)));
-    can_be_next.insert(AllSymbs::Quant(Quants::All));
-    can_be_next.insert(AllSymbs::Quant(Quants::Exist));
-    can_be_next.insert(AllSymbs::Term(TermType::Pred));
-    can_be_next.insert(AllSymbs::Syntax(SyntaxSymbs::OpenBr));
+        can_be_next.insert(AllSymbs::Op(Operations::Unary(UnaryOperations::Not)));
+        can_be_next.insert(AllSymbs::Quant(Quants::All));
+        can_be_next.insert(AllSymbs::Quant(Quants::Exist));
+        can_be_next.insert(AllSymbs::Term(TermType::Pred));
+        can_be_next.insert(AllSymbs::Syntax(SyntaxSymbs::OpenBr));
+
+        Self{
+            lvl,
+            //prev_token_type: None,
+            can_be_next,
+            need_parse_len: None,
+        }
+    }
+
+    pub fn new() -> Self{ Self::new_with_lvl(0) }
+
+    pub fn new_after_quant(&self) -> Self{
+        let mut can_be_next = HashSet::new();
+        can_be_next.insert(AllSymbs::Term(TermType::Var));
+
+        Self{
+            lvl: self.lvl + 1,
+            //prev_token_type: 
+            can_be_next,
+            need_parse_len: Some(1)
+        }
+    }
+
+    pub fn next(&self) -> Self { Self::new_with_lvl(self.lvl + 1) }
+}
+
+fn _parse<N:Name, T: PpeTesteable, I: Iterator<Item = T>> 
+(parser_rs: &ParserRuleset<T>, tokens: &mut I, pp: ParserParam) 
+-> Option<Expr<N>>{    
+    //TODO: only tail-rec or without rec
 
     loop{
         let token = tokens.next();
         if token.is_none(){
-            if lvl != 0 { 
+            if pp.lvl != 0 { 
                 //TODO:ERR:OUT: unexpected ending
                 return None
             } else {
@@ -147,15 +182,17 @@ fn _parse<N:Name, T: PpeTesteable, I: Iterator<Item = T>>
         }
         let token_type = token_type.unwrap();
         if token_type.is_empty() { continue }
-        if !can_be_next.contains(&token_type) {
+        if !pp.can_be_next.contains(&token_type) {
             //TODO:ERR:OUT: wrong token
             return None
         }
 
         return match token_type {
-            AllSymbs::Op(Operations::Unary(UnaryOperations::Not)) => 
-                //TODO: make tail-recursion : pass cur as param : Not(Empty) and then change empty into smth
-                _parse(parser_rs, tokens, lvl + 1, Some(token_type)).and_then(|x|Some(x.apply_unary_op(UnaryOperations::Not))),
+            AllSymbs::Op(Operations::Unary(uop)) => 
+                _parse(parser_rs, tokens, pp.next()).and_then(|x|Some(x.apply_unary_op(uop))),
+            AllSymbs::Quant(qua) => {
+                
+            }
             _ => panic!("cant be here"),
         }
 
