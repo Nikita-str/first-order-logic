@@ -22,6 +22,8 @@ impl StdName{
 
 
 impl Name for StdName {
+    fn first_name(term_type: TermType) -> Self { Self { name_type: term_type, name: 0, index: 0 } }
+
     fn name_type(&self) -> TermType { self.name_type }
     fn next_tst_name(&self) -> Self { Self { name_type: self.name_type, name: self.name + 1, index: self.index } }
     fn next_tst_index(&self) -> Self { Self { name_type: self.name_type, name: self.name, index: self.index + 1 } }
@@ -29,6 +31,8 @@ impl Name for StdName {
 
 pub trait Name where Self: Eq + Clone + Hash{
     
+    fn first_name(term_type: TermType) -> Self;
+
     fn name_type(&self) -> TermType;
     /// tst mean the same type
     fn next_tst_name(&self) -> Self;

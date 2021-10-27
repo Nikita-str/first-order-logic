@@ -22,6 +22,9 @@ pub struct ExprQuant<N: Name>{
     var_name: N,
     expr: Expr<N>,
 }
+impl<N:Name> ExprQuant<N>{
+    pub fn new(q: Quants, var_name: N, expr: Expr<N>) -> Self { Self { quant: q, var_name, expr } }
+}
 
 pub enum Expr<N: Name>{
     Empty,
@@ -34,5 +37,8 @@ pub enum Expr<N: Name>{
 impl<N:Name> Expr<N>{
     pub fn apply_unary_op(self, op: UnaryOperations) -> Self {
         Expr::UnaryOp(Rc::new(UnaryOpExpr::new(op, self))) 
+    }
+    pub fn apply_quant(self, quant: Quants, var_name: N) -> Self {
+        Expr::Quant(Rc::new(ExprQuant::new(quant, var_name, self))) 
     }
 }

@@ -2,7 +2,7 @@ use std::{collections::{HashMap, HashSet}, hash::Hash};
 
 use crate::logic::{all_symbs::{AllSymbs, SYMBS_AMOUNT}, expr::Expr, operations::{BinaryOperations, Operations, UnaryOperations}, quants::Quants, syntax_symbs::SyntaxSymbs, term_type::TermType};
 
-use super::name::Name;
+use super::{name::Name, name_holder::NameHolder};
 //use super::parse_info::Fit;
 
 
@@ -113,18 +113,24 @@ pub struct ParseStr<'s>{
 }
 */
 
-pub fn parse<N:Name, T: PpeTesteable, I: Iterator<Item = T>>(parser_rs: &ParserRuleset<T>, tokens: &mut I) -> Option<Expr<N>>{
-    _parse(parser_rs, tokens, ParserParam::new())
+pub fn parse<N:Name, T: PpeTesteable + Hash + Eq, I: Iterator<Item = T>>
+(parser_rs: &ParserRuleset<T>, tokens: &mut I) 
+//-> Option<Expr<N>>{
+    {
+    let mut name_holder = NameHolder::<N, T>::new();
+    _parse(parser_rs, tokens, ParserParam::new(& mut name_holder));
 }
 
-struct ParserParam{
+struct ParserParam<'a, N:Name, T:Hash + Eq>{
     pub lvl: usize,
     //prev_token_type: Option<AllSymbs>,
     pub can_be_next: HashSet<AllSymbs>,
-    pub need_parse_len: Option<usize>
+    pub need_parse_len: Option<usize>,
+    pub name_holder: &'a mut NameHolder<N, T>
 }
-impl ParserParam{
-    fn new_with_lvl(lvl: usize) -> Self{
+
+impl<'a, N:Name, T:Hash + Eq> ParserParam<'a, N, T>{
+    fn new_with_lvl(lvl: usize, name_holder: &'a mut NameHolder<N, T>) -> Self{
         let mut can_be_next = HashSet::new();
 
         can_be_next.insert(AllSymbs::Op(Operations::Unary(UnaryOperations::Not)));
@@ -138,29 +144,60 @@ impl ParserParam{
             //prev_token_type: None,
             can_be_next,
             need_parse_len: None,
+            name_holder
         }
     }
 
-    pub fn new() -> Self{ Self::new_with_lvl(0) }
+    pub fn new(name_holder: &'a mut NameHolder<N, T>) -> Self{ Self::new_with_lvl(0, name_holder) }
 
-    pub fn new_after_quant(&self) -> Self{
+    pub fn new_after_quant<'b>(&'b mut self) -> ParserParam<'b, N, T> 
+    where 'a: 'b{
         let mut can_be_next = HashSet::new();
         can_be_next.insert(AllSymbs::Term(TermType::Var));
 
-        Self{
+        ParserParam::<'b, N, T> {
             lvl: self.lvl + 1,
             //prev_token_type: 
             can_be_next,
-            need_parse_len: Some(1)
+            need_parse_len: Some(1),
+            name_holder: self.name_holder
         }
     }
 
-    pub fn next(&self) -> Self { Self::new_with_lvl(self.lvl + 1) }
+    pub fn next<'b>(&'b mut self) -> ParserParam<'b, N, T> 
+    where 'a: 'b{ ParserParam::<'b, N, T>::new_with_lvl(self.lvl + 1, self.name_holder) }
 }
 
-fn _parse<N:Name, T: PpeTesteable, I: Iterator<Item = T>> 
-(parser_rs: &ParserRuleset<T>, tokens: &mut I, pp: ParserParam) 
--> Option<Expr<N>>{    
+struct ParserRet<N:Name>{
+    pub expr: Option<Expr<N>>,
+    pub name: Option<N>
+}
+impl<N:Name> ParserRet<N>{
+    pub fn new_bad() -> Self { Self{ expr: None, name: None } }
+    pub fn new_expr(expr: Expr<N>) -> Self { Self { expr: Some(expr), name: None } }
+    pub fn new_name(name: N) -> Self { Self { expr: None, name: Some(name) } }
+
+    pub fn is_name(&self) -> bool { self.name.is_some() }
+    pub fn is_expr(&self) -> bool { self.expr.is_some() }
+    pub fn is_bad(&self) -> bool { self.is_name() == self.is_name() }
+
+    pub fn if_expr<F>(self, f: F) -> Self 
+    where F: FnOnce(Expr<N>) -> Expr<N>{
+        if self.is_expr() { Self::new_expr(f(self.expr.unwrap())) } 
+        else { Self::new_bad() }
+    }
+
+    pub fn if_name_then_pret<F>(self, f: F) -> Self
+    where F: FnOnce(N) -> Self{
+        if self.is_name() { f(self.name.unwrap()) }
+        else { Self::new_bad() }
+    }
+} 
+
+
+fn _parse<N:Name, T: PpeTesteable + Eq + Hash, I: Iterator<Item = T>> 
+(parser_rs: &ParserRuleset<T>, tokens: &mut I, mut pp: ParserParam<N, T>) 
+-> ParserRet<N>{    
     //TODO: only tail-rec or without rec
 
     loop{
@@ -168,9 +205,9 @@ fn _parse<N:Name, T: PpeTesteable, I: Iterator<Item = T>>
         if token.is_none(){
             if pp.lvl != 0 { 
                 //TODO:ERR:OUT: unexpected ending
-                return None
+                return ParserRet::new_bad()
             } else {
-                return Some(Expr::Empty)
+                return ParserRet::new_expr(Expr::Empty)
             }
         }
         let token = token.unwrap();
@@ -178,21 +215,26 @@ fn _parse<N:Name, T: PpeTesteable, I: Iterator<Item = T>>
         let token_type = parser_rs.get_type(&token);  
         if token_type.is_none() {
             //TODO:ERR:OUT: wrong token
-            return None
+            return ParserRet::new_bad()
         }
         let token_type = token_type.unwrap();
         if token_type.is_empty() { continue }
         if !pp.can_be_next.contains(&token_type) {
             //TODO:ERR:OUT: wrong token
-            return None
+            return ParserRet::new_bad()
         }
 
         return match token_type {
             AllSymbs::Op(Operations::Unary(uop)) => 
-                _parse(parser_rs, tokens, pp.next()).and_then(|x|Some(x.apply_unary_op(uop))),
-            AllSymbs::Quant(qua) => {
-                
-            }
+                _parse(parser_rs, tokens, pp.next()).if_expr(|x|x.apply_unary_op(uop)),
+            AllSymbs::Quant(qua) => 
+                _parse(parser_rs, tokens, pp.new_after_quant()).if_name_then_pret(
+                    |x|_parse(parser_rs, tokens, pp.next()).if_expr(
+                        |y|y.apply_quant(qua, x)
+                    )
+                ),
+            AllSymbs::Term(TermType::Var) => 
+                ParserRet::new_name(pp.name_holder.get_term_name(TermType::Var, token)),
             _ => panic!("cant be here"),
         }
 
