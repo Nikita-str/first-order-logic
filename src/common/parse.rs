@@ -130,8 +130,6 @@ struct ParserParam<'a, N:Name, T:Hash + Eq>{
 }
 
 impl<'a, N:Name, T:Hash + Eq> ParserParam<'a, N, T>{
-
-
     fn get_can_start() -> HashSet<AllSymbs>{
         let mut can_be_next = HashSet::new();
 
