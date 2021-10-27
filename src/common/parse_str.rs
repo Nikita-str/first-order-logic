@@ -1,5 +1,9 @@
+use crate::logic::{all_symbs::AllSymbs, operations::{BinaryOperations, Operations, UnaryOperations}, quants::Quants, syntax_symbs::SyntaxSymbs, term_type::TermType, terms::Term};
+
+use super::parse::{ExactTesteable, ParseRuleType, ParserRuleset, PostfixTesteable, PrefixTesteable};
 
 
+#[derive(PartialEq, Eq, Hash)]
 pub struct ParseStr<'a>{ 
     s: &'a str 
 }
@@ -11,6 +15,52 @@ impl<'a> ParseStr<'a>{
         let mut sh = 0;
         self.s.chars().any(|x| if f(x) { sh = sh + x.len_utf8(); false } else { true });
         sh
+    }
+
+    pub fn create_std_ruleset() -> ParserRuleset<ParseStr<'a>>{
+        let mut ruleset = ParserRuleset::new();
+
+        ruleset.add_rule(AllSymbs::Empty, ParseRuleType::Prefix, ParseStr::new(" "));
+
+        let mut add_rules = |term_type, vec:Vec<&'a str>|{
+            for v in vec{
+                ruleset.add_rule(AllSymbs::Term(term_type), ParseRuleType::Exact, ParseStr::new(v.trim_end_matches('_')));
+                ruleset.add_rule(AllSymbs::Term(term_type), ParseRuleType::Prefix, ParseStr::new(v));
+            }
+        };
+
+        let const_vec = vec!["a_", "b_", "c_"];
+        add_rules(TermType::Const, const_vec);
+        
+        let var_vec = vec!["X_", "x_", "Y_", "y_", "Z_", "z_", "W_", "w_"];
+        add_rules(TermType::Var, var_vec);
+
+        let func_vec = vec!["f", "g", "h"];
+        add_rules(TermType::Func, func_vec);
+
+        let pred_vec = vec!["P", "R", "Q"];
+        add_rules(TermType::Pred, pred_vec);
+
+        let mut add_exact_rules = |symb_type, vec: Vec<&'a str>|{
+            for v in vec{
+                ruleset.add_rule(symb_type, ParseRuleType::Exact, ParseStr::new(v));
+            }
+        };
+
+        add_exact_rules(AllSymbs::Quant(Quants::Exist), vec!["exist", "∃"]);
+        add_exact_rules(AllSymbs::Quant(Quants::All), vec!["for_all", "all", "for_any", "any", "∀"]);
+
+        add_exact_rules(AllSymbs::Syntax(SyntaxSymbs::Comma), vec![","]);
+        add_exact_rules(AllSymbs::Syntax(SyntaxSymbs::OpenBr), vec!["("]);
+        add_exact_rules(AllSymbs::Syntax(SyntaxSymbs::CloseBr), vec![")"]);
+
+        add_exact_rules(AllSymbs::Op(Operations::Unary(UnaryOperations::Not)), vec!["!", "¬"]);
+
+        add_exact_rules(AllSymbs::Op(Operations::Binary(BinaryOperations::Impl)), vec!["→", "->", "-->", "--->"]);
+        add_exact_rules(AllSymbs::Op(Operations::Binary(BinaryOperations::And)), vec!["∧", "&", "&&"]);
+        add_exact_rules(AllSymbs::Op(Operations::Binary(BinaryOperations::Or)), vec!["∨", "|", "||"]);
+        
+        ruleset
     }
 }
 
@@ -59,6 +109,18 @@ impl<'a> Iterator for ParseStr<'a>{
 }
 
 
+impl<'a> PrefixTesteable for ParseStr<'a>{
+    fn test_prefix(&self, other: &Self) -> bool { self.s.test_prefix(other.s) }
+}
+
+impl<'a> PostfixTesteable for ParseStr<'a>{
+    fn test_postfix(&self, other: &Self) -> bool { self.s.test_postfix(other.s) }
+}
+
+impl<'a> ExactTesteable for ParseStr<'a>{
+    fn test_exact(&self, other: &Self) -> bool { self.s.test_exact(other.s) }
+}
+
 #[cfg(test)]
 mod parse_str_test{
     use super::ParseStr;
@@ -72,7 +134,7 @@ mod parse_str_test{
     }
 
     #[test]
-    fn tests(){
+    fn iterator_tests(){
         test_help(
             ParseStr::new("∃x∀y P(x,y)   →∀yi∃x    P(x,  yi)"), 
         vec!["∃", "x", "∀", "y", " ", "P", "(", "x", ",", "y", ")", "   ", "→", "∀", "yi", "∃", "x", "    ", "P", "(", "x", ",", "  ", "yi", ")"]
