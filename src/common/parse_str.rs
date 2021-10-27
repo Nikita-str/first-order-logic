@@ -1,6 +1,6 @@
 use std::{collections::{HashMap, HashSet}, hash::Hash};
 
-use crate::logic::{all_symbs::{AllSymbs, SYMBS_AMOUNT}, expr::Expr, operations::{BinaryOperations, Operations, UnaryOperations}, quants::Quants, syntax_symbs::SyntaxSymbs, term_type::TermType};
+use crate::logic::{all_symbs::{AllSymbs, SYMBS_AMOUNT}, expr::Expr, operations::{BinaryOperations, Operations, UnaryOperations}, quants::Quants, syntax_symbs::SyntaxSymbs, term_type::TermType, terms::Term};
 
 use super::{name::Name, name_holder::NameHolder};
 //use super::parse_info::Fit;
@@ -55,6 +55,7 @@ impl PostfixTesteable for str { fn test_postfix(&self, other: &Self) -> bool { s
 impl ExactTesteable for str { fn test_exact(&self, other: &Self) -> bool { self.eq(other) } }
 
 pub struct ParserRuleset<T>{
+    // TODO: symb priority
     token_rulesets: HashMap<AllSymbs, ParseRuleset<T>>
 }
 
@@ -123,14 +124,15 @@ pub fn parse<N:Name, T: PpeTesteable + Hash + Eq, I: Iterator<Item = T>>
 
 struct ParserParam<'a, N:Name, T:Hash + Eq>{
     pub lvl: usize,
-    //prev_token_type: Option<AllSymbs>,
+    prev_token_type: Option<AllSymbs>,
     pub can_be_next: HashSet<AllSymbs>,
-    pub need_parse_len: Option<usize>,
     pub name_holder: &'a mut NameHolder<N, T>
 }
 
 impl<'a, N:Name, T:Hash + Eq> ParserParam<'a, N, T>{
-    fn new_with_lvl(lvl: usize, name_holder: &'a mut NameHolder<N, T>) -> Self{
+
+
+    fn get_can_start() -> HashSet<AllSymbs>{
         let mut can_be_next = HashSet::new();
 
         can_be_next.insert(AllSymbs::Op(Operations::Unary(UnaryOperations::Not)));
@@ -138,58 +140,106 @@ impl<'a, N:Name, T:Hash + Eq> ParserParam<'a, N, T>{
         can_be_next.insert(AllSymbs::Quant(Quants::Exist));
         can_be_next.insert(AllSymbs::Term(TermType::Pred));
         can_be_next.insert(AllSymbs::Syntax(SyntaxSymbs::OpenBr));
+        
+        can_be_next
+    }
+    fn get_can_binary() -> HashSet<AllSymbs>{
+        let mut can_be_next = HashSet::new();
+        can_be_next.insert(AllSymbs::Op(Operations::Binary(BinaryOperations::Impl)));
+        can_be_next.insert(AllSymbs::Op(Operations::Binary(BinaryOperations::And)));
+        can_be_next.insert(AllSymbs::Op(Operations::Binary(BinaryOperations::Or)));
+        return  can_be_next;
+    }
+    fn get_can_comma_or_close() -> HashSet<AllSymbs>{
+        let mut can_be_next = HashSet::new();
+        can_be_next.insert(AllSymbs::Syntax(SyntaxSymbs::CloseBr));
+        can_be_next.insert(AllSymbs::Syntax(SyntaxSymbs::Comma));
+        can_be_next
+    }
+    fn get_can_term() -> HashSet<AllSymbs>{
+        let mut can_be_next = HashSet::new();
+        can_be_next.insert(AllSymbs::Term(TermType::Var));
+        can_be_next.insert(AllSymbs::Term(TermType::Func));
+        can_be_next.insert(AllSymbs::Term(TermType::Const));
+        can_be_next
+    }
 
+    pub fn set_can_term(&mut self){ self.can_be_next = Self::get_can_term(); }
+    pub fn set_can_binary(&mut self){ self.can_be_next = Self::get_can_binary(); }
+    pub fn set_can_binary_or_close(&mut self){
+        self.set_can_binary();
+        self.can_be_next.insert(AllSymbs::Syntax(SyntaxSymbs::CloseBr)); 
+    }
+    pub fn set_can_comma_or_close(&mut self){ self.can_be_next = Self::get_can_comma_or_close(); }
+
+    fn new_with_lvl(lvl: usize, prev_token_type: Option<AllSymbs>, can_be_next: HashSet<AllSymbs>, name_holder: &'a mut NameHolder<N, T>) -> Self{
         Self{
             lvl,
-            //prev_token_type: None,
+            prev_token_type,
             can_be_next,
-            need_parse_len: None,
             name_holder
         }
     }
 
-    pub fn new(name_holder: &'a mut NameHolder<N, T>) -> Self{ Self::new_with_lvl(0, name_holder) }
+    pub fn new(name_holder: &'a mut NameHolder<N, T>) -> Self
+    { Self::new_with_lvl(0, None, Self::get_can_start(), name_holder) }
 
-    pub fn new_after_quant<'b>(&'b mut self) -> ParserParam<'b, N, T> 
-    where 'a: 'b{
-        let mut can_be_next = HashSet::new();
-        can_be_next.insert(AllSymbs::Term(TermType::Var));
-
-        ParserParam::<'b, N, T> {
-            lvl: self.lvl + 1,
-            //prev_token_type: 
-            can_be_next,
-            need_parse_len: Some(1),
-            name_holder: self.name_holder
-        }
+    pub fn new_after_quant<'b>(&'b mut self, quant: Quants) -> ParserParam<'b, N, T> where 'a: 'b{
+        self.symb_await(AllSymbs::Quant(quant), AllSymbs::Term(TermType::Var))
     }
 
-    pub fn next<'b>(&'b mut self) -> ParserParam<'b, N, T> 
-    where 'a: 'b{ ParserParam::<'b, N, T>::new_with_lvl(self.lvl + 1, self.name_holder) }
+    pub fn new_after_pred_or_func<'b>(&'b mut self, cur_token: AllSymbs) -> ParserParam<'b, N, T> where 'a: 'b{
+        let mut can_be_next = Self::get_can_term();
+        can_be_next.insert(AllSymbs::Syntax(SyntaxSymbs::CloseBr));
+        ParserParam::<'b, N, T>::new_with_lvl(self.lvl + 1, Some(cur_token), can_be_next, self.name_holder)
+    }
+    
+    pub fn next<'b>(&'b mut self, cur_token: AllSymbs) -> ParserParam<'b, N, T> where 'a: 'b
+    { ParserParam::<'b, N, T>::new_with_lvl(self.lvl + 1, Some(cur_token), Self::get_can_start(), self.name_holder) }
+
+    pub fn symb_await<'b>(&'b mut self, cur_token: AllSymbs, symb_await: AllSymbs) ->  ParserParam<'b, N, T> where 'a: 'b{
+        let mut can_be_next = HashSet::new();
+        can_be_next.insert(symb_await);
+        ParserParam::<'b, N, T>{ 
+            lvl: self.lvl + 1,
+            prev_token_type: Some(cur_token), 
+            can_be_next,
+            name_holder: self.name_holder
+         }
+    }
 }
 
-struct ParserRet<N:Name>{
-    pub expr: Option<Expr<N>>,
-    pub name: Option<N>
+enum ParserRet<N:Name>{
+    Expr(Expr<N>),
+    Term(Term<N>),
+    Name(N),
+    Bad
 }
+
 impl<N:Name> ParserRet<N>{
-    pub fn new_bad() -> Self { Self{ expr: None, name: None } }
-    pub fn new_expr(expr: Expr<N>) -> Self { Self { expr: Some(expr), name: None } }
-    pub fn new_name(name: N) -> Self { Self { expr: None, name: Some(name) } }
+    pub fn new_expr(expr: Expr<N>) -> Self { Self::Expr(expr) }
+    pub fn new_term(term: Term<N>) -> Self { Self::Term(term) }
+    pub fn new_name(name: N) -> Self { Self::Name(name) }
+    pub fn new_bad() -> Self { Self::Bad }
 
-    pub fn is_name(&self) -> bool { self.name.is_some() }
-    pub fn is_expr(&self) -> bool { self.expr.is_some() }
-    pub fn is_bad(&self) -> bool { self.is_name() == self.is_name() }
+    pub fn is_name(&self) -> bool { if let ParserRet::Name(_) = self { true } else { false }}
+    pub fn is_expr(&self) -> bool { if let ParserRet::Expr(_) = self { true } else { false }}
+    pub fn is_term(&self) -> bool { if let ParserRet::Term(_) = self { true } else { false }}
+    pub fn is_bad(&self) -> bool { if let ParserRet::Bad = self { true } else { false }}
+
+    pub fn get_expr(self) -> Expr<N> { if let Self::Expr(expr) = self { expr } else { panic!("not expr") } }
+    pub fn get_term(self) -> Term<N> { if let Self::Term(term) = self { term } else { panic!("not term") } }
+    pub fn get_name(self) -> N { if let Self::Name(name) = self { name } else { panic!("not name") } }
 
     pub fn if_expr<F>(self, f: F) -> Self 
     where F: FnOnce(Expr<N>) -> Expr<N>{
-        if self.is_expr() { Self::new_expr(f(self.expr.unwrap())) } 
+        if self.is_expr() { Self::new_expr(f(self.get_expr())) } 
         else { Self::new_bad() }
     }
 
     pub fn if_name_then_pret<F>(self, f: F) -> Self
     where F: FnOnce(N) -> Self{
-        if self.is_name() { f(self.name.unwrap()) }
+        if self.is_name() { f(self.get_name()) }
         else { Self::new_bad() }
     }
 } 
@@ -200,15 +250,16 @@ fn _parse<N:Name, T: PpeTesteable + Eq + Hash, I: Iterator<Item = T>>
 -> ParserRet<N>{    
     //TODO: only tail-rec or without rec
 
+    let mut ret_expr = Expr::Empty;
+
     loop{
         let token = tokens.next();
         if token.is_none(){
             if pp.lvl != 0 { 
                 //TODO:ERR:OUT: unexpected ending
                 return ParserRet::new_bad()
-            } else {
-                return ParserRet::new_expr(Expr::Empty)
-            }
+            } 
+            return ParserRet::new_expr(ret_expr)
         }
         let token = token.unwrap();
 
@@ -226,15 +277,65 @@ fn _parse<N:Name, T: PpeTesteable + Eq + Hash, I: Iterator<Item = T>>
 
         return match token_type {
             AllSymbs::Op(Operations::Unary(uop)) => 
-                _parse(parser_rs, tokens, pp.next()).if_expr(|x|x.apply_unary_op(uop)),
+                _parse(parser_rs, tokens, pp.next(token_type)).if_expr(|x|x.apply_unary_op(uop)),
             AllSymbs::Quant(qua) => 
-                _parse(parser_rs, tokens, pp.new_after_quant()).if_name_then_pret(
-                    |x|_parse(parser_rs, tokens, pp.next()).if_expr(
+                _parse(parser_rs, tokens, pp.new_after_quant(qua)).if_name_then_pret(
+                    |x|_parse(parser_rs, tokens, pp.next(token_type)).if_expr(
                         |y|y.apply_quant(qua, x)
                     )
                 ),
             AllSymbs::Term(TermType::Var) => 
-                ParserRet::new_name(pp.name_holder.get_term_name(TermType::Var, token)),
+                ParserRet::new_name(pp.name_holder.get_name(TermType::Var, token)),
+            AllSymbs::Term(TermType::Const) => 
+                ParserRet::new_name(pp.name_holder.get_name(TermType::Const, token)),
+            AllSymbs::Term(TermType::Func) => {
+                let func_name = pp.name_holder.get_name(TermType::Func, token);
+
+                let open_br = _parse(parser_rs, tokens, pp.symb_await(token_type, AllSymbs::Syntax(SyntaxSymbs::OpenBr)));
+                if !(open_br.is_expr() && open_br.get_expr().is_empty()) { return ParserRet::new_bad() }
+
+                let mut terms = Vec::new();
+                loop{
+                    let name = _parse(parser_rs, tokens, pp.new_after_pred_or_func(token_type));
+                    if name.is_bad() { return name }
+                    if name.is_name() { 
+                        let name = name.get_name();
+
+                        if name.name_type() == TermType::Const {
+                            terms.push(pp.name_holder.get_const_term(&name))
+                        } else if name.name_type() == TermType::Var {
+                            terms.push(pp.name_holder.get_var_term(&name))
+                        } else {
+                            panic!("we cant get that type of name!")
+                        }
+                     } else if name.is_term() { terms.push(name.get_term()) } 
+                     else if name.is_expr(){  
+                         let expr = name.get_expr();
+                         if !expr.is_empty() { panic!("we cant take such type of expr!") }
+                         return ParserRet::new_term(Term::new_func_by_param(func_name, terms))
+                     }
+                }
+            }
+            AllSymbs::Syntax(SyntaxSymbs::Comma) => {
+                pp.set_can_term();
+                continue
+            } 
+            AllSymbs::Syntax(SyntaxSymbs::CloseBr) => ParserRet::new_expr(ret_expr),
+            AllSymbs::Syntax(SyntaxSymbs::OpenBr) => {
+                if let Some(AllSymbs::Term(_)) = pp.prev_token_type{
+                    return ParserRet::new_expr(ret_expr)
+                } else {
+                    let ret_expr_temp = _parse(parser_rs, tokens, pp.next(token_type));
+                    if !ret_expr_temp.is_expr() { return ParserRet::new_bad() }
+                    
+                    ret_expr = ret_expr_temp.get_expr();
+                    if ret_expr.is_empty() { return ParserRet::new_bad() }
+                    
+                    pp.set_can_binary_or_close();
+                    continue;
+                }
+            }
+            
             _ => panic!("cant be here"),
         }
 

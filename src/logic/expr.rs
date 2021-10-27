@@ -35,6 +35,8 @@ pub enum Expr<N: Name>{
 }
 
 impl<N:Name> Expr<N>{
+    pub fn is_empty(&self) -> bool { if let Expr::Empty = self { true } else { false }  }
+
     pub fn apply_unary_op(self, op: UnaryOperations) -> Self {
         Expr::UnaryOp(Rc::new(UnaryOpExpr::new(op, self))) 
     }

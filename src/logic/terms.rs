@@ -35,6 +35,10 @@ impl<N: Name> Term<N>{
     pub fn new_func(func_term: FuncTerm<N>) -> Self{ Self::Func(Rc::new(RefCell::new(func_term))) }
     pub fn new_var(var_term: VarTerm<N>) -> Self{ Self::Var(Rc::new(RefCell::new(var_term))) }
 
+    pub fn new_func_by_param(name: N, params: Vec<Term<N>>) -> Self { Self::new_func(FuncTerm{ name, params }) }
+    pub fn new_const_by_param(name: N) -> Self { Self::new_const(ConstTerm{ name }) }
+    pub fn new_var_by_param(name: N) -> Self { Self::new_var(VarTerm{ name }) }
+
     pub fn is_const(&self) -> bool { if let Term::Const(_) = self { true } else { false } }
     pub fn get_const(&self) -> Ref<ConstTerm<N>> { 
         if let Term::Const(rc) = self { Rc::as_ref(rc).borrow() } 
