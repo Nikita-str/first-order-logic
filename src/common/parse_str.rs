@@ -163,6 +163,11 @@ impl<'a, N:Name, T:Hash + Eq> ParserParam<'a, N, T>{
         can_be_next.insert(AllSymbs::Term(TermType::Const));
         can_be_next
     }
+    fn get_can_symb(symb: AllSymbs) -> HashSet<AllSymbs>{
+        let mut can_be_next = HashSet::new();
+        can_be_next.insert(symb);
+        can_be_next
+    }
 
     pub fn set_can_term(&mut self){ self.can_be_next = Self::get_can_term(); }
     pub fn set_can_binary(&mut self){ self.can_be_next = Self::get_can_binary(); }
@@ -188,8 +193,10 @@ impl<'a, N:Name, T:Hash + Eq> ParserParam<'a, N, T>{
         self.symb_await(AllSymbs::Quant(quant), AllSymbs::Term(TermType::Var))
     }
 
-    pub fn new_after_pred_or_func<'b>(&'b mut self, cur_token: AllSymbs) -> ParserParam<'b, N, T> where 'a: 'b{
-        let mut can_be_next = Self::get_can_term();
+    pub fn new_after_pred_or_func<'b>(&'b mut self, cur_token: AllSymbs, first: bool) -> ParserParam<'b, N, T> where 'a: 'b{
+        let mut can_be_next = 
+            if first { Self::get_can_term() } 
+            else { Self::get_can_symb(AllSymbs::Syntax(SyntaxSymbs::Comma)) };
         can_be_next.insert(AllSymbs::Syntax(SyntaxSymbs::CloseBr));
         ParserParam::<'b, N, T>::new_with_lvl(self.lvl + 1, Some(cur_token), can_be_next, self.name_holder)
     }
@@ -234,6 +241,11 @@ impl<N:Name> ParserRet<N>{
     pub fn if_expr<F>(self, f: F) -> Self 
     where F: FnOnce(Expr<N>) -> Expr<N>{
         if self.is_expr() { Self::new_expr(f(self.get_expr())) } 
+        else { Self::new_bad() }
+    }
+    pub fn if_expr_then_pret<F>(self, f: F) -> Self 
+    where F: FnOnce(Expr<N>) -> Self{
+        if self.is_expr() { f(self.get_expr()) } 
         else { Self::new_bad() }
     }
 
@@ -294,9 +306,10 @@ fn _parse<N:Name, T: PpeTesteable + Eq + Hash, I: Iterator<Item = T>>
                 let open_br = _parse(parser_rs, tokens, pp.symb_await(token_type, AllSymbs::Syntax(SyntaxSymbs::OpenBr)));
                 if !(open_br.is_expr() && open_br.get_expr().is_empty()) { return ParserRet::new_bad() }
 
+                let mut first = true;
                 let mut terms = Vec::new();
                 loop{
-                    let name = _parse(parser_rs, tokens, pp.new_after_pred_or_func(token_type));
+                    let name = _parse(parser_rs, tokens, pp.new_after_pred_or_func(token_type, first));
                     if name.is_bad() { return name }
                     if name.is_name() { 
                         let name = name.get_name();
@@ -308,13 +321,18 @@ fn _parse<N:Name, T: PpeTesteable + Eq + Hash, I: Iterator<Item = T>>
                         } else {
                             panic!("we cant get that type of name!")
                         }
-                     } else if name.is_term() { terms.push(name.get_term()) } 
-                     else if name.is_expr(){  
+                    } else if name.is_term() { 
+                        terms.push(name.get_term()) 
+                    } else if name.is_expr(){  
                          let expr = name.get_expr();
                          if !expr.is_empty() { panic!("we cant take such type of expr!") }
                          return ParserRet::new_term(Term::new_func_by_param(func_name, terms))
-                     }
+                    }
+                    first = false;
                 }
+            }
+            AllSymbs::Term(TermType::Pred) => {
+                
             }
             AllSymbs::Syntax(SyntaxSymbs::Comma) => {
                 pp.set_can_term();
@@ -335,6 +353,17 @@ fn _parse<N:Name, T: PpeTesteable + Eq + Hash, I: Iterator<Item = T>>
                     continue;
                 }
             }
+            AllSymbs::Op(Operations::Binary(bop)) => 
+                if ret_expr.is_empty() { 
+                    ParserRet::new_bad() 
+                }
+                else {
+                    _parse(parser_rs, tokens, pp.next(token_type)).if_expr_then_pret(
+                        |left|_parse(parser_rs, tokens, pp.next(token_type)).if_expr(
+                            |right|Expr::apply_binary_op(bop, left, right)
+                        )
+                    )
+                }
             
             _ => panic!("cant be here"),
         }

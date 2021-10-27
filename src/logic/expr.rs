@@ -16,6 +16,10 @@ pub struct BinaryOpExpr<N: Name>{
     left_formula: Expr<N>,  
     right_formula: Expr<N>,  
 }
+impl<N:Name> BinaryOpExpr<N>{
+    pub fn new(op: BinaryOperations, left: Expr<N>, right: Expr<N>) -> Self 
+    { Self { op, left_formula: left, right_formula: right } }
+}
 
 pub struct ExprQuant<N: Name>{
     quant: Quants,
@@ -39,6 +43,9 @@ impl<N:Name> Expr<N>{
 
     pub fn apply_unary_op(self, op: UnaryOperations) -> Self {
         Expr::UnaryOp(Rc::new(UnaryOpExpr::new(op, self))) 
+    }
+    pub fn apply_binary_op(op: BinaryOperations, left: Self, right: Self) -> Self {
+        Expr::BinaryOp(Rc::new(BinaryOpExpr::new(op, left, right))) 
     }
     pub fn apply_quant(self, quant: Quants, var_name: N) -> Self {
         Expr::Quant(Rc::new(ExprQuant::new(quant, var_name, self))) 
