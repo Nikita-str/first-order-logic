@@ -1,4 +1,4 @@
-use std::{collections::{HashMap, HashSet}, hash::Hash};
+use std::{collections::{HashMap, HashSet}, hash::Hash, marker::PhantomData, mem::MaybeUninit, ptr::addr_of_mut, convert::TryInto};
 
 use crate::logic::{all_symbs::{AllSymbs, SYMBS_AMOUNT}, expr::Expr, operations::{BinaryOperations, Operations, UnaryOperations}, predicate_expr::PredicateExpr, quants::Quants, syntax_symbs::SyntaxSymbs, term_type::TermType, terms::Term};
 
@@ -260,6 +260,106 @@ impl<N:Name> ParserRet<N>{
         else { Self::new_bad() }
     }
 } 
+
+struct Tokens<'a, T, I: Iterator<Item = T>, const SZ: usize>{
+    tokens: &'a mut I,
+    start_index: usize,
+    cur_prev_saved: usize,
+    previous_token: [Option<T>; SZ]
+}
+impl<'a, T, I: Iterator<Item = T>, const SZ: usize> Tokens<'a, T, I, SZ>{
+    pub fn new(tokens: &'a mut I) -> Self {
+        let mut vec = vec![];
+        for _ in 0..SZ { vec.push(None); }
+        let boxed_array: Box<[Option<T>; SZ]> = match vec.into_boxed_slice().try_into() {
+            Ok(ba) => ba,
+            Err(o) => panic!("Expected a Vec of length {} but it was {}", SZ, o.len()),
+        };
+        Self { tokens, start_index: 0, cur_prev_saved: 0, previous_token: *boxed_array }
+    }
+
+    pub fn save_prev_token(&mut self, prev: T){
+        if self.cur_prev_saved == SZ { panic!("too many save!") }
+        if self.cur_prev_saved == 0 { self.start_index = 0; }
+        let ind = (self.start_index + self.cur_prev_saved) % SZ; 
+        self.previous_token[ind] = Some(prev);
+        self.cur_prev_saved = self.cur_prev_saved + 1;
+    }
+}
+impl<'a, T, I: Iterator<Item = T>, const SZ: usize> Iterator for Tokens<'a, T, I, SZ>{
+    type Item = T;
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.cur_prev_saved > 0 {
+            self.cur_prev_saved = self.cur_prev_saved - 1;
+            let mut x = None;
+            std::mem::swap(&mut x, &mut self.previous_token[self.start_index]);
+            self.start_index = self.start_index + 1;
+            if self.start_index == SZ { self.start_index = 0 }
+            x
+        } else {
+            self.tokens.next()
+        }
+    }
+}
+
+#[cfg(test)]
+mod tokens_test{
+    use super::Tokens;
+    #[test]
+    fn create_tokens() {
+        let iter = vec![1, 4, 8];
+        let mut iter = iter.into_iter();
+        let mut x = Tokens::<_, _, 2>::new(&mut iter);
+        assert_eq!(x.next(), Some(1));
+        assert_eq!(x.next(), Some(4));
+        x.save_prev_token(8);
+        assert_eq!(x.next(), Some(8));
+        assert_eq!(x.next(), Some(8));
+        assert_eq!(x.next(), None);
+        assert_eq!(x.next(), None);
+        x.save_prev_token(1);
+        x.save_prev_token(3);
+        assert_eq!(x.next(), Some(1));
+        x.save_prev_token(5);
+        assert_eq!(x.next(), Some(3));
+        x.save_prev_token(7);
+        assert_eq!(x.next(), Some(5));
+        assert_eq!(x.next(), Some(7));
+        assert_eq!(x.next(), None);
+        
+        let iter = vec![1, 2, 3];
+        let mut iter = iter.into_iter();
+        let mut x = Tokens::<_, _, 4>::new(&mut iter);
+        x.save_prev_token(10);
+        x.save_prev_token(11);
+        x.save_prev_token(12); // 10 11 12 x
+        assert_eq!(x.next(), Some(10)); // x 11 12 x
+        x.save_prev_token(13); // x 11 12 13
+        assert_eq!(x.next(), Some(11)); // xx xx 12 13
+        x.save_prev_token(14); 
+        x.save_prev_token(15); // 14 15 12 13
+        assert_eq!(x.next(), Some(12)); 
+        assert_eq!(x.next(), Some(13)); // 14 15 x x
+        x.save_prev_token(16); // 14 15 16 x
+        assert_eq!(x.next(), Some(14)); 
+        assert_eq!(x.next(), Some(15));  // x x 16 x
+        assert_eq!(x.next(), Some(16));  
+        x.save_prev_token(17);  
+        x.save_prev_token(18);  // 17 18 x x
+        assert_eq!(x.next(), Some(17));  
+        x.save_prev_token(19);  
+        x.save_prev_token(20);  // x 18 19 20
+        assert_eq!(x.next(), Some(18));  
+        x.save_prev_token(21);  // 21 x 19 20
+        assert_eq!(x.next(), Some(19));  
+        assert_eq!(x.next(), Some(20));  
+        assert_eq!(x.next(), Some(21));  
+        assert_eq!(x.next(), Some(1));  
+        assert_eq!(x.next(), Some(2));  
+        assert_eq!(x.next(), Some(3));  
+        assert_eq!(x.next(), None);  
+    }
+}
 
 
 fn _parse<N:Name, T: PpeTesteable + Eq + Hash, I: Iterator<Item = T>> 

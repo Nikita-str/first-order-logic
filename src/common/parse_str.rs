@@ -150,6 +150,20 @@ mod parse_str_test{
     #[test]
     fn parse_test(){
         let ruleset = ParseStr::create_std_ruleset();
+
+        let ps = ParseStr::new("P(f(a, b), g(b, h(c)))");
+        let expr = parse::parse::<StdName, _, _>(&ruleset, &mut ps.into_iter());
+
+        match expr {
+            None => println!("NONE :("),
+            Some(expr) => {
+                println!("EXPR : {:?}", expr)
+            }
+        }
+
+        println!();
+        println!();
+
         let ps = ParseStr::new("∃x∀y P(x,y)   →∀yi∃x    P(x,  yi)");
         let expr = parse::parse::<StdName, _, _>(&ruleset, &mut ps.into_iter());
 
