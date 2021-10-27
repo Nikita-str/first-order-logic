@@ -3,3 +3,5 @@ pub mod name_holder;
 
 pub mod parse;
 pub mod parse_info;
+
+pub mod parse_str;
