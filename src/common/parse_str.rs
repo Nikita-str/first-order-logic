@@ -1,7 +1,9 @@
-use std::{collections::{HashMap, HashSet}};
+use std::{collections::{HashMap, HashSet}, hash::Hash};
 
-use crate::logic::{all_symbs::{AllSymbs, SYMBS_AMOUNT}, operations::{BinaryOperations, Operations, UnaryOperations}, quants::Quants, term_type::TermType};
-use super::parse_info::Fit;
+use crate::logic::{all_symbs::{AllSymbs, SYMBS_AMOUNT}, expr::Expr, operations::{BinaryOperations, Operations, UnaryOperations}, quants::Quants, syntax_symbs::SyntaxSymbs, term_type::TermType};
+
+use super::name::Name;
+//use super::parse_info::Fit;
 
 
 #[derive(PartialEq, Eq, Hash)]
@@ -17,7 +19,7 @@ pub struct ParseRuleset<T>{
 }
 impl<T> ParseRuleset<T>{
     pub fn new() -> Self{
-        let map = HashMap::new();
+        let mut map = HashMap::new();
         map.insert(ParseRuleType::Exact, HashSet::new());
         map.insert(ParseRuleType::Prefix, HashSet::new());
         map.insert(ParseRuleType::Postfix, HashSet::new());
@@ -25,6 +27,13 @@ impl<T> ParseRuleset<T>{
         Self{ ruleset: map }
     }
 }
+
+impl<T: Eq + Hash> ParseRuleset<T>{
+    pub fn add_rule(&mut self, rtype: ParseRuleType, value: T){
+        self.ruleset.get_mut(&rtype).unwrap().insert(value);
+    }
+}
+
 impl<T: PpeTesteable> ParseRuleset<T>{
     fn is_fit(&self, test: &T) -> bool {
         let res = self.ruleset.get(&ParseRuleType::Exact).unwrap().into_iter().any(|x|x.test_exact(test));
@@ -45,15 +54,15 @@ impl PrefixTesteable for str { fn test_prefix(&self, other: &Self) -> bool { sel
 impl PostfixTesteable for str { fn test_postfix(&self, other: &Self) -> bool { self.ends_with(other) } }
 impl ExactTesteable for str { fn test_exact(&self, other: &Self) -> bool { self.eq(other) } }
 
-pub struct TokenParse<T>{
-    empty_token: ParseRuleset<T>,
-    symbs_token: HashMap<AllSymbs, ParseRuleset<T>>
+pub struct ParserRuleset<T>{
+    token_rulesets: HashMap<AllSymbs, ParseRuleset<T>>
 }
 
-impl<T> TokenParse<T>{
+impl<T> ParserRuleset<T>{
     pub fn new() -> Self{
-        let empty_token = ParseRuleset::new();
         let mut symbs_token = HashMap::new();
+
+        symbs_token.insert(AllSymbs::Empty, ParseRuleset::new());
 
         symbs_token.insert(AllSymbs::Quant(Quants::All), ParseRuleset::new());
         symbs_token.insert(AllSymbs::Quant(Quants::Exist), ParseRuleset::new());
@@ -68,18 +77,88 @@ impl<T> TokenParse<T>{
         symbs_token.insert(AllSymbs::Op(Operations::Binary(BinaryOperations::And)), ParseRuleset::new());
         symbs_token.insert(AllSymbs::Op(Operations::Binary(BinaryOperations::Impl)), ParseRuleset::new());
 
+        symbs_token.insert(AllSymbs::Syntax(SyntaxSymbs::Comma), ParseRuleset::new());
+        symbs_token.insert(AllSymbs::Syntax(SyntaxSymbs::OpenBr), ParseRuleset::new());
+        symbs_token.insert(AllSymbs::Syntax(SyntaxSymbs::CloseBr), ParseRuleset::new());
+
         assert_eq!(symbs_token.len(), SYMBS_AMOUNT);
 
-        Self { empty_token, symbs_token }
+        Self { token_rulesets: symbs_token }
     }
+}
+
+impl<T: Eq + Hash> ParserRuleset<T>{
+    pub fn add_rule(&mut self, symbs: AllSymbs, rtype: ParseRuleType, value: T) { 
+        self.token_rulesets.get_mut(&symbs).unwrap().add_rule(rtype, value) 
+    }
+}
+
+impl<T: PpeTesteable> ParserRuleset<T>{
+    pub fn get_type(&self, token: &T) -> Option<AllSymbs>{
+        for (key, ruleset) in &self.token_rulesets{
+            if ruleset.is_fit(token) { return Some(*key) }
+        }
+        None
+    }
+}
+
+/*
+pub struct Parseable<'a, T>{
+    token_parse: &'a TokenParse<T>,
+    parse_obj: Iterator<T>,
 }
 
 pub struct ParseStr<'s>{
     s: &'s str 
 }
+*/
 
-impl<'s> Fit<AllSymbs> for ParseStr<'s> {
-    fn get_type(&self) -> Option<AllSymbs>{
+pub fn parse<N:Name, T: PpeTesteable, I: Iterator<Item = T>>(parser_rs: &ParserRuleset<T>, tokens: &mut I) -> Option<Expr<N>>{
+    _parse(parser_rs, tokens, 0, None)
+}
+
+fn _parse<N:Name, T: PpeTesteable, I: Iterator<Item = T>>
+(parser_rs: &ParserRuleset<T>, tokens: &mut I, lvl: i32, pred_token_type: Option<AllSymbs>) 
+-> Option<Expr<N>>{    
+    let mut can_be_next = HashSet::new();
+
+    can_be_next.insert(AllSymbs::Op(Operations::Unary(UnaryOperations::Not)));
+    can_be_next.insert(AllSymbs::Quant(Quants::All));
+    can_be_next.insert(AllSymbs::Quant(Quants::Exist));
+    can_be_next.insert(AllSymbs::Term(TermType::Pred));
+    can_be_next.insert(AllSymbs::Syntax(SyntaxSymbs::OpenBr));
+
+    loop{
+        let token = tokens.next();
+        if token.is_none(){
+            if lvl != 0 { 
+                //TODO:ERR:OUT: unexpected ending
+                return None
+            } else {
+                return Some(Expr::Empty)
+            }
+        }
+        let token = token.unwrap();
+
+        let token_type = parser_rs.get_type(&token);  
+        if token_type.is_none() {
+            //TODO:ERR:OUT: wrong token
+            return None
+        }
+        let token_type = token_type.unwrap();
+        if token_type.is_empty() { continue }
+        if !can_be_next.contains(&token_type) {
+            //TODO:ERR:OUT: wrong token
+            return None
+        }
+
+        return match token_type {
+            AllSymbs::Op(Operations::Unary(UnaryOperations::Not)) => 
+                //TODO: make tail-recursion : pass cur as param : Not(Empty) and then change empty into smth
+                _parse(parser_rs, tokens, lvl + 1, Some(token_type)).and_then(|x|Some(x.apply_unary_op(UnaryOperations::Not))),
+            _ => panic!("cant be here"),
+        }
+
 
     }
-} 
+}

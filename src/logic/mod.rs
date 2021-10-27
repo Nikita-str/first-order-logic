@@ -7,6 +7,7 @@ pub mod term_type;
 pub mod terms;
 pub mod substit;
 
+pub mod syntax_symbs;
 pub mod all_symbs;
 
 // pub use self::quants::Quants;

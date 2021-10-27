@@ -7,5 +7,5 @@ pub struct ParseInfo<Token: Fit<AllSymbs>>{
 }
 */
 
-pub trait Fit<Type>{ fn get_type(&self) -> Option<Type>; }
+//pub trait Fit<Type>{ fn get_type(&self) -> Option<Type>; }
 
