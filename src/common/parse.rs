@@ -103,29 +103,19 @@ impl<T: PpeTesteable> ParserRuleset<T>{
     }
 }
 
-/*
-pub struct Parseable<'a, T>{
-    token_parse: &'a TokenParse<T>,
-    parse_obj: Iterator<T>,
-}
-
-pub struct ParseStr<'s>{
-    s: &'s str 
-}
-*/
-
 pub fn parse<N:Name+std::fmt::Debug, T: PpeTesteable + Hash + Eq + std::fmt::Debug, I: Iterator<Item = T>>
 (parser_rs: &ParserRuleset<T>, tokens: &mut I) 
--> Option<Expr<N>>{
+-> Result<(Expr<N>, NameHolder<N, T>), ParseError>{
     let mut name_holder = NameHolder::<N, T>::new();
     let mut tokens = Tokens::<_, _, 1>::new(tokens);
     let expr = _parse(parser_rs, &mut tokens, ParserParam::new(& mut name_holder));
     println!("free vars: {:?}", name_holder.get_free_vars());
     match expr {
-        ParserRet::Expr(expr) => Some(expr),
+        ParserRet::Expr(expr) => Ok((expr, name_holder)),
+        ParserRet::Bad(err) => Err(err),
         _ => { 
             // TODO: INFORM ABOUT ERROR 
-            None 
+            Err(ParseError::ExpectedExpr) 
         }
     }
 }
@@ -157,6 +147,8 @@ impl<'a, N:Name, T:Hash + Eq> ParserParam<'a, N, T>{
         can_be_next.insert(AllSymbs::Op(Operations::Binary(BinaryOperations::Or)));
         return  can_be_next;
     }
+
+    #[allow(dead_code)]
     fn get_can_comma_or_close() -> HashSet<AllSymbs>{
         let mut can_be_next = HashSet::new();
         can_be_next.insert(AllSymbs::Syntax(SyntaxSymbs::CloseBr));
@@ -184,6 +176,7 @@ impl<'a, N:Name, T:Hash + Eq> ParserParam<'a, N, T>{
         self.set_can_binary();
         self.can_be_next.insert(AllSymbs::Syntax(SyntaxSymbs::CloseBr)); 
     }
+    #[allow(dead_code)]
     pub fn set_can_comma_or_close(&mut self){ self.can_be_next = Self::get_can_comma_or_close(); }
 
     fn new_with_lvl(lvl: usize, prev_token_type: Option<AllSymbs>, can_be_next: HashSet<AllSymbs>, name_holder: &'a mut NameHolder<N, T>) -> Self{
@@ -230,23 +223,35 @@ impl<'a, N:Name, T:Hash + Eq> ParserParam<'a, N, T>{
     pub fn disallow_save(&mut self, value: AllSymbs) { self.allow_back_save.remove(&value); }
 }
 
+pub enum ParseError{
+    UnexpectedToken,
+    UnexpectedEnd,
+    ExpectedExpr,
+    ExpectedName,
+    UnclassifiableToken,
+    MoreThanOneQuantLimitation,
+    ThereMustBe(AllSymbs),
+    DifferentParamLen,
+    EmptyExpr,
+}
+
 enum ParserRet<N:Name>{
     Expr(Expr<N>),
     Term(Term<N>),
     Name(N),
-    Bad
+    Bad(ParseError),
 }
 
 impl<N:Name> ParserRet<N>{
     pub fn new_expr(expr: Expr<N>) -> Self { Self::Expr(expr) }
     pub fn new_term(term: Term<N>) -> Self { Self::Term(term) }
     pub fn new_name(name: N) -> Self { Self::Name(name) }
-    pub fn new_bad() -> Self { Self::Bad }
+    pub fn new_bad(parse_error: ParseError) -> Self { Self::Bad(parse_error) }
 
     pub fn is_name(&self) -> bool { if let ParserRet::Name(_) = self { true } else { false }}
     pub fn is_expr(&self) -> bool { if let ParserRet::Expr(_) = self { true } else { false }}
     pub fn is_term(&self) -> bool { if let ParserRet::Term(_) = self { true } else { false }}
-    pub fn is_bad(&self) -> bool { if let ParserRet::Bad = self { true } else { false }}
+    pub fn is_bad(&self) -> bool { if let ParserRet::Bad(_) = self { true } else { false }}
 
     pub fn get_expr(self) -> Expr<N> { if let Self::Expr(expr) = self { expr } else { panic!("not expr") } }
     pub fn get_term(self) -> Term<N> { if let Self::Term(term) = self { term } else { panic!("not term") } }
@@ -255,18 +260,22 @@ impl<N:Name> ParserRet<N>{
     pub fn if_expr<F>(self, f: F) -> Self 
     where F: FnOnce(Expr<N>) -> Expr<N>{
         if self.is_expr() { Self::new_expr(f(self.get_expr())) } 
-        else { Self::new_bad() }
+        else if self.is_bad() { self } 
+        else { Self::new_bad(ParseError::ExpectedExpr) }
     }
+    #[allow(dead_code)]
     pub fn if_expr_then_pret<F>(self, f: F) -> Self 
     where F: FnOnce(Expr<N>) -> Self{
         if self.is_expr() { f(self.get_expr()) } 
-        else { Self::new_bad() }
+        else if self.is_bad() { self } 
+        else { Self::new_bad(ParseError::ExpectedExpr) }
     }
 
     pub fn if_name_then_pret<F>(self, f: F) -> Self
     where F: FnOnce(N) -> Self{
         if self.is_name() { f(self.get_name()) }
-        else { Self::new_bad() }
+        else if self.is_bad() { self } 
+        else { Self::new_bad(ParseError::ExpectedName) }
     }
 } 
 
@@ -406,29 +415,23 @@ fn _parse<N:Name+std::fmt::Debug, T: PpeTesteable + Eq + Hash + std::fmt::Debug,
             if pp.allow_back_save.contains(&AllSymbs::End) {
                 return ParserRet::new_expr(ret_expr)
             }
-            //TODO:ERR:OUT: unexpected ending
-            return ParserRet::new_bad()
+            return ParserRet::new_bad(ParseError::UnexpectedEnd)
         }
         let token = token.unwrap();
 
         let token_type = parser_rs.get_type(&token);  
 
-        println!("T_TYPE: {:?} [lvl={:?}]  ::  [prev={:?}]", token_type, pp.lvl, pp.prev_token_type);
-
         if token_type.is_none() {
-            //TODO:ERR:OUT: wrong token
-            return ParserRet::new_bad()
+            return ParserRet::new_bad(ParseError::UnclassifiableToken)
         }
         let token_type = token_type.unwrap();
         if token_type.is_empty() { continue }
         if !pp.can_be_next.contains(&token_type) {
             if pp.lvl != 0 && pp.allow_back_save.contains(&token_type){
-                println!("BACK_RET: [ttype={:?}] [lvl={:?}]", token_type, pp.lvl);
                 tokens.save_prev_token(token);
                 return ParserRet::new_expr(ret_expr)
             }
-            //TODO:ERR:OUT: wrong token
-            return ParserRet::new_bad()
+            return ParserRet::new_bad(ParseError::UnexpectedToken)
         }
 
         return match token_type {
@@ -475,7 +478,7 @@ fn _parse<N:Name+std::fmt::Debug, T: PpeTesteable + Eq + Hash + std::fmt::Debug,
                 println!("AFTER Q: OLD = {:?}", obj_name);    
                 if obj_name.is_some() && pp.name_holder.is_name_banned(term_type, &obj_name.unwrap()) {
                     println!("name already use other quantor!");
-                    ParserRet::new_bad()
+                    ParserRet::new_bad(ParseError::MoreThanOneQuantLimitation)
                 } else {
                     let obj_name = pp.name_holder.get_name_uncond_new(term_type, token);
                     println!("AFTER Q: NEW = {:?}", obj_name);    
@@ -517,7 +520,9 @@ fn _parse<N:Name+std::fmt::Debug, T: PpeTesteable + Eq + Hash + std::fmt::Debug,
                             tokens, 
                             pp.symb_await(token_type, AllSymbs::Syntax(SyntaxSymbs::OpenBr))
                         );
-                        if !(open_br.is_expr() && open_br.get_expr().is_empty()) { return ParserRet::new_bad() }
+                        if !(open_br.is_expr() && open_br.get_expr().is_empty()) { 
+                            return ParserRet::new_bad(ParseError::ThereMustBe(AllSymbs::Syntax(SyntaxSymbs::OpenBr))) 
+                        }
                       
                         let mut first = true;
                         let mut terms = Vec::new();  
@@ -543,7 +548,7 @@ fn _parse<N:Name+std::fmt::Debug, T: PpeTesteable + Eq + Hash + std::fmt::Debug,
                                 if let Some(old_size) = pp.name_holder.get_param_len(term_type, &obj_name) {
                                     if old_size != terms.len() { 
                                         println!("previously params len was {:?} but now its len {:?}", old_size, terms.len());
-                                        return ParserRet::new_bad()
+                                        return ParserRet::new_bad(ParseError::DifferentParamLen)
                                     }
                                 } else {
                                     pp.name_holder.set_param_len(term_type, obj_name.clone(), terms.len());
@@ -580,7 +585,7 @@ fn _parse<N:Name+std::fmt::Debug, T: PpeTesteable + Eq + Hash + std::fmt::Debug,
                     println!("HERE: CLOSE BR [TERM]");
                     ParserRet::new_expr(ret_expr)
                 } else {
-                    if ret_expr.is_empty() { return ParserRet::new_bad() }
+                    if ret_expr.is_empty() { return ParserRet::new_bad(ParseError::EmptyExpr) }
                     if try_take_binary(&mut pp) {
                         println!("HERE: CLOSE BR[->&|] prev={:?}", pp.prev_token_type);
                         pp.allow_save(AllSymbs::Syntax(SyntaxSymbs::CloseBr));
@@ -596,10 +601,11 @@ fn _parse<N:Name+std::fmt::Debug, T: PpeTesteable + Eq + Hash + std::fmt::Debug,
                     return ParserRet::new_expr(ret_expr)
                 } else {
                     let ret_expr_temp = _parse(parser_rs, tokens, pp.next(token_type));
-                    if !ret_expr_temp.is_expr() { return ParserRet::new_bad() }
+                    if ret_expr_temp.is_bad() { return ret_expr_temp }
+                    if !ret_expr_temp.is_expr() { return ParserRet::new_bad(ParseError::ExpectedExpr) }
                     
                     ret_expr = ret_expr_temp.get_expr();
-                    if ret_expr.is_empty() { return ParserRet::new_bad() }
+                    if ret_expr.is_empty() { return ParserRet::new_bad(ParseError::EmptyExpr) }
                     
                     pp.disallow_save(AllSymbs::End);
                     pp.set_can_binary_or_close();
@@ -608,7 +614,7 @@ fn _parse<N:Name+std::fmt::Debug, T: PpeTesteable + Eq + Hash + std::fmt::Debug,
             }
             AllSymbs::Op(Operations::Binary(bop)) => 
                 if ret_expr.is_empty() { 
-                    ParserRet::new_bad() 
+                    ParserRet::new_bad(ParseError::EmptyExpr) 
                 }
                 else {
                     let expr = _parse(parser_rs, tokens, pp.next(token_type)).if_expr(
