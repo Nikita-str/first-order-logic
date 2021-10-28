@@ -1,4 +1,5 @@
-use crate::logic::{all_symbs::AllSymbs, operations::{BinaryOperations, Operations, UnaryOperations}, quants::Quants, syntax_symbs::SyntaxSymbs, term_type::TermType, terms::Term};
+use crate::logic::{all_symbs::AllSymbs, operations::{BinaryOperations, Operations, UnaryOperations}, 
+                    quants::Quants, syntax_symbs::SyntaxSymbs, term_type::TermType};
 
 use super::parse::{ExactTesteable, ParseRuleType, ParserRuleset, PostfixTesteable, PrefixTesteable};
 
@@ -124,3 +125,7 @@ impl<'a> ExactTesteable for ParseStr<'a>{
     fn test_exact(&self, other: &Self) -> bool { self.s.test_exact(other.s) }
 }
 
+
+impl<'a> std::fmt::Display for ParseStr<'a>{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { write!(f, "{}", self.s) }
+}

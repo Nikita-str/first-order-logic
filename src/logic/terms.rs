@@ -5,10 +5,11 @@ use crate::common::name::Name;
 
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct ConstTerm<N: Name>{ pub name: N }
-
+impl<N: Name> ConstTerm<N>{ pub fn get_name(&self) -> &N { &self.name } }
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
 pub struct VarTerm<N: Name>{ pub name: N }
+impl<N: Name> VarTerm<N>{ pub fn get_name(&self) -> &N { &self.name } }
 
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct FuncTerm<N: Name>{

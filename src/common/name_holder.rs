@@ -20,7 +20,7 @@ pub struct NameHolder<N: Name, T: Hash + Eq>{
     banned_names: HashMap<TermType, HashSet<N>>,
 
     renaming: HashMap<N, Vec<N>>,
-    rename_to_init: HashMap<N, N>,
+    rename_to_init: HashMap<N, (usize, N)>,
 
     free_var: HashSet<N>,
 }
@@ -91,8 +91,9 @@ impl<N: Name, T: Hash + Eq + Clone> NameHolder<N, T>{
             let old_name = self.get_initial_existing_name(term_type, &new_term);
             let new_name = self.real_add_name(term_type, new_term);
             if !self.renaming.contains_key(&old_name) { self.renaming.insert(old_name.clone(), Vec::new()); }
-            self.renaming.get_mut(&old_name).unwrap().push(new_name.clone());
-            self.rename_to_init.insert(new_name.clone(), old_name);
+            let vec = self.renaming.get_mut(&old_name).unwrap();
+            vec.push(new_name.clone());
+            self.rename_to_init.insert(new_name.clone(), (vec.len(), old_name));
             new_name
         }
     }
@@ -169,5 +170,11 @@ impl<N: Name, T: Hash + Eq> NameHolder<N, T>{
     pub fn is_free_var(&self, var_name: &N) -> bool { self.free_var.contains(var_name) }
 
     pub fn get_free_vars(&self) -> &HashSet<N> { &self.free_var }
-    pub fn get_init_of_renaming(&self) -> &HashMap<N, N> { &self.rename_to_init }
+    pub fn get_init_of_renaming(&self) -> &HashMap<N, (usize, N)> { &self.rename_to_init }
+
+    pub fn token_by_name_unchecked(&self, name: &N) -> (usize, &T) {
+        let mut sh = 0;
+        let name = if let Some(name) = self.rename_to_init.get(name) { sh = name.0; &name.1 } else { name };
+        (sh, self.name_to_token.get(name).unwrap())
+    }
 }

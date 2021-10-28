@@ -1,8 +1,8 @@
 use std::{collections::{HashMap, HashSet}, hash::Hash, convert::TryInto};
 
-use crate::logic::{all_symbs::{AllSymbs, SYMBS_AMOUNT}, expr::Expr, operations::{BinaryOperations, Operations, UnaryOperations}, quants::Quants, syntax_symbs::SyntaxSymbs, term_type::TermType, terms::Term};
+use crate::{common::ok_parse::OkParse, logic::{all_symbs::{AllSymbs, SYMBS_AMOUNT}, expr::Expr, operations::{BinaryOperations, Operations, UnaryOperations}, quants::Quants, syntax_symbs::SyntaxSymbs, term_type::TermType, terms::Term}};
 
-use super::{name::Name, name_holder::NameHolder};
+use super::{name::Name, name_holder::{NameHolder}};
 //use super::parse_info::Fit;
 
 
@@ -103,16 +103,17 @@ impl<T: PpeTesteable> ParserRuleset<T>{
     }
 }
 
+
 pub fn parse<N:Name+std::fmt::Debug, T: PpeTesteable + Hash + Eq + std::fmt::Debug + Clone, I: Iterator<Item = T>>
 (parser_rs: &ParserRuleset<T>, tokens: &mut I) 
--> Result<(Expr<N>, NameHolder<N, T>), ParseError>{
+-> Result<OkParse<N, T>, ParseError>{
     let mut name_holder = NameHolder::<N, T>::new();
     let mut tokens = Tokens::<_, _, 1>::new(tokens);
     let expr = _parse(parser_rs, &mut tokens, ParserParam::new(& mut name_holder));
     println!("free vars: {:?}", name_holder.get_free_vars());
     println!("init of renaming: {:?}", name_holder.get_init_of_renaming());
     match expr {
-        ParserRet::Expr(expr) => Ok((expr, name_holder)),
+        ParserRet::Expr(expr) => Ok(OkParse::new(expr, name_holder)),
         ParserRet::Bad(err) => Err(err),
         _ => { 
             // TODO: INFORM ABOUT ERROR 
@@ -457,7 +458,6 @@ fn _parse<N:Name+std::fmt::Debug, T: PpeTesteable + Eq + Hash + Clone + std::fmt
                                 |y|y.apply_quant(qua, x.clone())
                             );
                             pp.name_holder.unban_name(term_type, &x);
-                            println!("Q UNBAN: {:?}", x);
                             r
                         }
                     );
@@ -476,13 +476,11 @@ fn _parse<N:Name+std::fmt::Debug, T: PpeTesteable + Eq + Hash + Clone + std::fmt
             AllSymbs::Term(TermType::Var) if matches!(pp.prev_token_type, Some(AllSymbs::Quant(_))) => {
                 let term_type = TermType::Var; 
                 let obj_name = pp.name_holder.get_last_existing_name(term_type, &token).and_then(|x|Some(x.clone()));
-                println!("AFTER Q: OLD = {:?}", obj_name);    
                 if obj_name.is_some() && pp.name_holder.is_name_banned(term_type, &obj_name.unwrap()) {
-                    println!("name already use other quantor!");
+                    //println!("name already use other quantor!");
                     ParserRet::new_bad(ParseError::MoreThanOneQuantLimitation)
                 } else {
                     let obj_name = pp.name_holder.get_name_uncond_new(term_type, token);
-                    println!("AFTER Q: NEW = {:?}", obj_name);    
                     pp.name_holder.ban_name(term_type, obj_name.clone());
                     ParserRet::new_name(obj_name)
                 }
@@ -548,7 +546,7 @@ fn _parse<N:Name+std::fmt::Debug, T: PpeTesteable + Eq + Hash + Clone + std::fmt
                                 // [+] check params len
                                 if let Some(old_size) = pp.name_holder.get_param_len(term_type, &obj_name) {
                                     if old_size != terms.len() { 
-                                        println!("previously params len was {:?} but now its len {:?}", old_size, terms.len());
+                                        //println!("previously params len was {:?} but now its len {:?}", old_size, terms.len());
                                         return ParserRet::new_bad(ParseError::DifferentParamLen)
                                     }
                                 } else {
@@ -583,12 +581,10 @@ fn _parse<N:Name+std::fmt::Debug, T: PpeTesteable + Eq + Hash + Clone + std::fmt
             } 
             AllSymbs::Syntax(SyntaxSymbs::CloseBr) => {
                 if let Some(AllSymbs::Term(_)) = pp.prev_token_type{
-                    println!("HERE: CLOSE BR [TERM]");
                     ParserRet::new_expr(ret_expr)
                 } else {
                     if ret_expr.is_empty() { return ParserRet::new_bad(ParseError::EmptyExpr) }
                     if try_take_binary(&mut pp) {
-                        println!("HERE: CLOSE BR[->&|] prev={:?}", pp.prev_token_type);
                         pp.allow_save(AllSymbs::Syntax(SyntaxSymbs::CloseBr));
                         pp.allow_save(AllSymbs::End);
                         continue 'main_loop

@@ -10,6 +10,9 @@ pub struct PredicateExpr<N: Name>{
 
 impl<N: Name> PredicateExpr<N>{
     pub fn new(name: N, params: Vec<Term<N>>) -> Self{ Self{name, params} }
+
+    pub fn get_name(&self) -> &N { &self.name }
+    pub fn get_params(&self) -> &Vec<Term<N>> { &self.params }
 }
 
 impl<N: Name + std::fmt::Display> PredicateExpr<N>{
