@@ -103,13 +103,14 @@ impl<T: PpeTesteable> ParserRuleset<T>{
     }
 }
 
-pub fn parse<N:Name+std::fmt::Debug, T: PpeTesteable + Hash + Eq + std::fmt::Debug, I: Iterator<Item = T>>
+pub fn parse<N:Name+std::fmt::Debug, T: PpeTesteable + Hash + Eq + std::fmt::Debug + Clone, I: Iterator<Item = T>>
 (parser_rs: &ParserRuleset<T>, tokens: &mut I) 
 -> Result<(Expr<N>, NameHolder<N, T>), ParseError>{
     let mut name_holder = NameHolder::<N, T>::new();
     let mut tokens = Tokens::<_, _, 1>::new(tokens);
     let expr = _parse(parser_rs, &mut tokens, ParserParam::new(& mut name_holder));
     println!("free vars: {:?}", name_holder.get_free_vars());
+    println!("init of renaming: {:?}", name_holder.get_init_of_renaming());
     match expr {
         ParserRet::Expr(expr) => Ok((expr, name_holder)),
         ParserRet::Bad(err) => Err(err),
@@ -380,7 +381,7 @@ mod tokens_test{
 }
 
 
-fn _parse<N:Name+std::fmt::Debug, T: PpeTesteable + Eq + Hash + std::fmt::Debug, I: Iterator<Item = T>> 
+fn _parse<N:Name+std::fmt::Debug, T: PpeTesteable + Eq + Hash + Clone + std::fmt::Debug, I: Iterator<Item = T>> 
 (parser_rs: &ParserRuleset<T>, tokens: &mut Tokens<T, I, 1>, mut pp: ParserParam<N, T>) 
 -> ParserRet<N>{    
     //TODO: only tail-rec or without rec

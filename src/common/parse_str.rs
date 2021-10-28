@@ -3,7 +3,7 @@ use crate::logic::{all_symbs::AllSymbs, operations::{BinaryOperations, Operation
 use super::parse::{ExactTesteable, ParseRuleType, ParserRuleset, PostfixTesteable, PrefixTesteable};
 
 
-#[derive(PartialEq, Eq, Hash, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug, Clone)]
 pub struct ParseStr<'a>{ 
     s: &'a str 
 }

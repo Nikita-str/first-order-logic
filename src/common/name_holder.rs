@@ -13,12 +13,14 @@ pub struct NameHolder<N: Name, T: Hash + Eq>{
     func_lens: HashMap<N, usize>,
     pred_lens: HashMap<N, usize>,
 
+    name_to_token: HashMap<N, T>,
     names: HashMap<TermType, HashMap<T, N>>,
     last_names: HashMap<TermType, N>,
 
     banned_names: HashMap<TermType, HashSet<N>>,
 
     renaming: HashMap<N, Vec<N>>,
+    rename_to_init: HashMap<N, N>,
 
     free_var: HashSet<N>,
 }
@@ -45,27 +47,54 @@ impl<N: Name, T: Hash + Eq> NameHolder<N, T>{
             const_term: HashMap::new(), 
             func_lens: HashMap::new(), 
             pred_lens: HashMap::new(),
+            name_to_token: HashMap::new(),
             names, 
             last_names,
             banned_names, 
+            rename_to_init: HashMap::new(),
             renaming: HashMap::new(),
             free_var: HashSet::new(),
         }
     }
 }
 
-impl<N: Name, T: Hash + Eq> NameHolder<N, T>{
+impl<N: Name, T: Hash + Eq + Clone> NameHolder<N, T>{
     fn real_add_name(&mut self,term_type: TermType, new_term: T) -> N{
         let map = self.names.get_mut(&term_type).unwrap();
         let last_name = self.last_names.get(&term_type).unwrap().next_tst_name();
-            self.last_names.insert(term_type, last_name.clone());
-            if term_type == TermType::Const { 
-                self.const_term.insert(last_name.clone(), Term::new_const_by_param(last_name.clone())); 
-            } else if term_type == TermType::Var {
-                self.var_term.insert(last_name.clone(), Term::new_var_by_param(last_name.clone())); 
-            }
+        self.last_names.insert(term_type, last_name.clone());
+        if term_type == TermType::Const { 
+            self.const_term.insert(last_name.clone(), Term::new_const_by_param(last_name.clone())); 
+        } else if term_type == TermType::Var {
+            self.var_term.insert(last_name.clone(), Term::new_var_by_param(last_name.clone())); 
+        }
+        if !map.contains_key(&new_term){
+            self.name_to_token.insert(last_name.clone(), new_term.clone());
             map.insert(new_term, last_name.clone());
-            last_name
+        }
+        last_name
+    }
+
+    /// if name not exist just do the same as ```get_name``` do
+    /// 
+    /// if name already exist - create new name for that term
+    /// 
+    /// it may be helpful when the same name used in different cases. 
+    /// 
+    /// for example: 
+    /// `∃x: P(x) -> ∀x: R(x)`
+    /// but it mean
+    /// `∃x_0: P(x_0) -> ∀x_1: R(x_1)`
+    pub fn get_name_uncond_new(&mut self, term_type: TermType, new_term: T) -> N { 
+        if !self.exist_name(term_type, &new_term) { self.get_name(term_type, new_term) }
+        else{
+            let old_name = self.get_initial_existing_name(term_type, &new_term);
+            let new_name = self.real_add_name(term_type, new_term);
+            if !self.renaming.contains_key(&old_name) { self.renaming.insert(old_name.clone(), Vec::new()); }
+            self.renaming.get_mut(&old_name).unwrap().push(new_name.clone());
+            self.rename_to_init.insert(new_name.clone(), old_name);
+            new_name
+        }
     }
 
     pub fn get_name(&mut self, term_type: TermType, new_term: T) -> N{
@@ -75,7 +104,9 @@ impl<N: Name, T: Hash + Eq> NameHolder<N, T>{
             self.real_add_name(term_type, new_term) 
         }
     }
+}
 
+impl<N: Name, T: Hash + Eq> NameHolder<N, T>{
     pub fn get_var_term(&self, name: &N) -> Term<N>{ self.var_term.get(name).unwrap().clone() }
     pub fn get_const_term(&self, name: &N) -> Term<N>{ self.const_term.get(name).unwrap().clone() }
 
@@ -101,27 +132,6 @@ impl<N: Name, T: Hash + Eq> NameHolder<N, T>{
             }
         } else {
             None
-        }
-    }
-
-    /// if name not exist just do the same as ```get_name``` do
-    /// 
-    /// if name already exist - create new name for that term
-    /// 
-    /// it may be helpful when the same name used in different cases. 
-    /// 
-    /// for example: 
-    /// `∃x: P(x) -> ∀x: R(x)`
-    /// but it mean
-    /// `∃x_0: P(x_0) -> ∀x_1: R(x_1)`
-    pub fn get_name_uncond_new(&mut self, term_type: TermType, new_term: T) -> N { 
-        if !self.exist_name(term_type, &new_term) { self.get_name(term_type, new_term) }
-        else{
-            let old_name = self.get_initial_existing_name(term_type, &new_term);
-            let new_name = self.real_add_name(term_type, new_term);
-            if !self.renaming.contains_key(&old_name) { self.renaming.insert(old_name.clone(), Vec::new()); }
-            self.renaming.get_mut(&old_name).unwrap().push(new_name.clone());
-            new_name
         }
     }
 
@@ -159,4 +169,5 @@ impl<N: Name, T: Hash + Eq> NameHolder<N, T>{
     pub fn is_free_var(&self, var_name: &N) -> bool { self.free_var.contains(var_name) }
 
     pub fn get_free_vars(&self) -> &HashSet<N> { &self.free_var }
+    pub fn get_init_of_renaming(&self) -> &HashMap<N, N> { &self.rename_to_init }
 }
