@@ -377,8 +377,29 @@ fn _parse<N:Name+std::fmt::Debug, T: PpeTesteable + Eq + Hash + std::fmt::Debug,
 
     let mut ret_expr = Expr::Empty;
 
+    let mut try_take_binary = |pp: &mut ParserParam<_,_>|{
+        let prev = pp.prev_token_type; 
+        let prev_prior = if let Some(x) = prev { x.get_priority() } else { None };
+        let prev_prior = prev_prior.unwrap_or(0);
+        
+        let op_vec = vec![BinaryOperations::And, BinaryOperations::Or, BinaryOperations::Impl]; 
+        pp.clear_can();
+        let mut can_any = false;
+        for op in op_vec{
+            let symb = AllSymbs::Op(Operations::Binary(op));
+            if prev_prior <= symb.get_priority().unwrap() {
+                pp.set_can(symb);
+                can_any = true;
+            } else {
+                pp.allow_save(symb);
+            }
+        }
+        can_any
+    };
+
     'main_loop: loop{
         let token = tokens.next();
+        
         if token.is_none(){
             // TODO: DEL false; ADD pp.can_end (or END token)
             if false && pp.lvl != 0 { 
@@ -392,7 +413,6 @@ fn _parse<N:Name+std::fmt::Debug, T: PpeTesteable + Eq + Hash + std::fmt::Debug,
         let token_type = parser_rs.get_type(&token);  
 
         println!("T_TYPE: {:?} [lvl={:?}]", token_type, pp.lvl);
-        if let Some(AllSymbs::Syntax(SyntaxSymbs::CloseBr)) = token_type { println!("token before close br: {:?}", ret_expr); } 
 
         if token_type.is_none() {
             //TODO:ERR:OUT: wrong token
@@ -418,25 +438,10 @@ fn _parse<N:Name+std::fmt::Debug, T: PpeTesteable + Eq + Hash + std::fmt::Debug,
                             |y|y.apply_quant(qua, x)
                         )
                     );
-                    
+                    if !expr.is_expr() { return expr }
                     ret_expr = expr.get_expr();
 
-                    let prev = pp.prev_token_type; 
-                    let prev_prior = if let Some(x) = prev { x.get_priority() } else { None };
-                    let prev_prior = prev_prior.unwrap_or(0);
-                    
-                    let op_vec = vec![BinaryOperations::And, BinaryOperations::Or, BinaryOperations::Impl]; 
-                    pp.clear_can();
-                    let mut can_any = false;
-                    for op in op_vec{
-                        let symb = AllSymbs::Op(Operations::Binary(op));
-                        if prev_prior <= symb.get_priority().unwrap() {
-                            pp.set_can(symb);
-                            can_any = true;
-                        }
-                    }
-
-                    if can_any {
+                    if  try_take_binary(&mut pp) {
                         pp.allow_save(AllSymbs::Syntax(SyntaxSymbs::CloseBr));
                         continue 'main_loop
                     } else {
@@ -482,22 +487,7 @@ fn _parse<N:Name+std::fmt::Debug, T: PpeTesteable + Eq + Hash + std::fmt::Debug,
                                     if !ret_expr.is_empty() { panic!("expr must be empty") }
                                     ret_expr = Expr::new_predicate(obj_name, terms);
 
-                                    let prev = pp.prev_token_type; 
-                                    let prev_prior = if let Some(x) = prev { x.get_priority() } else { None };
-                                    let prev_prior = prev_prior.unwrap_or(0);
-                                    
-                                    let op_vec = vec![BinaryOperations::And, BinaryOperations::Or, BinaryOperations::Impl]; 
-                                    pp.clear_can();
-                                    let mut can_any = false;
-                                    for op in op_vec{
-                                        let symb = AllSymbs::Op(Operations::Binary(op));
-                                        if prev_prior <= symb.get_priority().unwrap() {
-                                            pp.set_can(symb);
-                                            can_any = true;
-                                        }
-                                    }
-
-                                    if can_any {
+                                    if try_take_binary(&mut pp) {
                                         pp.allow_save(AllSymbs::Syntax(SyntaxSymbs::CloseBr));
                                         continue 'main_loop
                                     } else {
@@ -515,7 +505,19 @@ fn _parse<N:Name+std::fmt::Debug, T: PpeTesteable + Eq + Hash + std::fmt::Debug,
                 pp.set_can_term();
                 continue
             } 
-            AllSymbs::Syntax(SyntaxSymbs::CloseBr) => ParserRet::new_expr(ret_expr),
+            AllSymbs::Syntax(SyntaxSymbs::CloseBr) => {
+                if let Some(AllSymbs::Term(_)) = pp.prev_token_type{
+                    ParserRet::new_expr(ret_expr)
+                } else {
+                    if ret_expr.is_empty() { return ParserRet::new_bad() }
+                    if try_take_binary(&mut pp) {
+                        pp.allow_save(AllSymbs::Syntax(SyntaxSymbs::CloseBr));
+                        continue 'main_loop
+                    } else {
+                        return ParserRet::new_expr(ret_expr)
+                    }
+                }
+            }
             AllSymbs::Syntax(SyntaxSymbs::OpenBr) => {
                 if let Some(AllSymbs::Term(_)) = pp.prev_token_type{
                     return ParserRet::new_expr(ret_expr)
@@ -535,9 +537,18 @@ fn _parse<N:Name+std::fmt::Debug, T: PpeTesteable + Eq + Hash + std::fmt::Debug,
                     ParserRet::new_bad() 
                 }
                 else {
-                    _parse(parser_rs, tokens, pp.next(token_type)).if_expr(
+                    let expr = _parse(parser_rs, tokens, pp.next(token_type)).if_expr(
                             |right|Expr::apply_binary_op(bop, ret_expr, right)
-                    )
+                    );
+                    if !expr.is_expr() { return expr }
+                    ret_expr = expr.get_expr();
+
+                    if try_take_binary(&mut pp) {
+                        pp.allow_save(AllSymbs::Syntax(SyntaxSymbs::CloseBr));
+                        continue 'main_loop
+                    } else {
+                        return ParserRet::new_expr(ret_expr)
+                    }
                 }
             
             _ => panic!("cant be here"),

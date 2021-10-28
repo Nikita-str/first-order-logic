@@ -151,7 +151,7 @@ mod parse_str_test{
     fn parse_test(){
         let ruleset = ParseStr::create_std_ruleset();
 
-        let ps = ParseStr::new("P(f(a, b), g(b, h(c)))");
+        let ps = ParseStr::new("P(f(a, b), g(b, h(c)))"); // +
         let expr = parse::parse::<StdName, _, _>(&ruleset, &mut ps.into_iter());
 
         match expr {
@@ -161,10 +161,47 @@ mod parse_str_test{
             }
         }
 
-        println!();
-        println!();
+        println!("\n\n\n");
 
-        let ps = ParseStr::new("∃x∀y P(x,y)   →∀y_i∃x    P(x,  y_i)");
+        let ps = ParseStr::new("∃x∀y P(x,y)   →∀y_i∃x    P(x,  y_i)"); // +
+        let expr = parse::parse::<StdName, _, _>(&ruleset, &mut ps.into_iter());
+
+        match expr {
+            None => println!("NONE :("),
+            Some(expr) => {
+                println!("EXPR : {:?}", expr)
+            }
+        }
+
+        println!("\n\n\n");
+
+        let ps = ParseStr::new("P(a,b)&P(b,c)&P(c,a)"); // +
+        let expr = parse::parse::<StdName, _, _>(&ruleset, &mut ps.into_iter());
+
+        match expr {
+            None => println!("NONE :("),
+            Some(expr) => {
+                println!("EXPR : {:?}", expr)
+            }
+        }
+
+        println!("\n\n\n");
+
+        // must : And(Or(.., And(...)), ...)
+        let ps = ParseStr::new("(P(a,b)|P(b,c)&P(c,a))&P(a,b)"); 
+        let expr = parse::parse::<StdName, _, _>(&ruleset, &mut ps.into_iter());
+
+        match expr {
+            None => println!("NONE :("),
+            Some(expr) => {
+                println!("EXPR : {:?}", expr)
+            }
+        }
+
+        println!("\n\n\n");
+
+        // must : Or(And(..), And(..))
+        let ps = ParseStr::new("P(a,b)&P(b,c)|P(c,a)&P(a,b)"); 
         let expr = parse::parse::<StdName, _, _>(&ruleset, &mut ps.into_iter());
 
         match expr {
