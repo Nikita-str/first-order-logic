@@ -1,6 +1,6 @@
 
 
-#[derive(PartialEq, Eq, Hash, Clone, Copy)]
+#[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
 pub enum SyntaxSymbs{
     Comma,
     OpenBr,

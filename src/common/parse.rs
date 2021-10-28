@@ -1,6 +1,6 @@
-use std::{collections::{HashMap, HashSet}, hash::Hash, marker::PhantomData, mem::MaybeUninit, ptr::addr_of_mut, convert::TryInto};
+use std::{collections::{HashMap, HashSet}, hash::Hash, convert::TryInto};
 
-use crate::logic::{all_symbs::{AllSymbs, SYMBS_AMOUNT}, expr::Expr, operations::{BinaryOperations, Operations, UnaryOperations}, predicate_expr::PredicateExpr, quants::Quants, syntax_symbs::SyntaxSymbs, term_type::TermType, terms::Term};
+use crate::logic::{all_symbs::{AllSymbs, SYMBS_AMOUNT}, expr::Expr, operations::{BinaryOperations, Operations, UnaryOperations}, quants::Quants, syntax_symbs::SyntaxSymbs, term_type::TermType, terms::Term};
 
 use super::{name::Name, name_holder::NameHolder};
 //use super::parse_info::Fit;
@@ -36,9 +36,9 @@ impl<T: Eq + Hash> ParseRuleset<T>{
 
 impl<T: PpeTesteable> ParseRuleset<T>{
     fn is_fit(&self, test: &T) -> bool {
-        let res = self.ruleset.get(&ParseRuleType::Exact).unwrap().into_iter().any(|x|x.test_exact(test));
-        let res = res || self.ruleset.get(&ParseRuleType::Prefix).unwrap().into_iter().any(|x|x.test_prefix(test));
-        let res = res || self.ruleset.get(&ParseRuleType::Postfix).unwrap().into_iter().any(|x|x.test_postfix(test));
+        let res = self.ruleset.get(&ParseRuleType::Exact).unwrap().into_iter().any(|x|test.test_exact(x));
+        let res = res || self.ruleset.get(&ParseRuleType::Prefix).unwrap().into_iter().any(|x|test.test_prefix(x));
+        let res = res || self.ruleset.get(&ParseRuleType::Postfix).unwrap().into_iter().any(|x|test.test_postfix(x));
         res
     }
 }
@@ -114,11 +114,12 @@ pub struct ParseStr<'s>{
 }
 */
 
-pub fn parse<N:Name, T: PpeTesteable + Hash + Eq, I: Iterator<Item = T>>
+pub fn parse<N:Name+std::fmt::Debug, T: PpeTesteable + Hash + Eq + std::fmt::Debug, I: Iterator<Item = T>>
 (parser_rs: &ParserRuleset<T>, tokens: &mut I) 
 -> Option<Expr<N>>{
     let mut name_holder = NameHolder::<N, T>::new();
-    let expr = _parse(parser_rs, tokens, ParserParam::new(& mut name_holder));
+    let mut tokens = Tokens::<_, _, 1>::new(tokens);
+    let expr = _parse(parser_rs, &mut tokens, ParserParam::new(& mut name_holder));
     
     match expr {
         ParserRet::Expr(expr) => Some(expr),
@@ -132,6 +133,7 @@ pub fn parse<N:Name, T: PpeTesteable + Hash + Eq, I: Iterator<Item = T>>
 struct ParserParam<'a, N:Name, T:Hash + Eq>{
     pub lvl: usize,
     prev_token_type: Option<AllSymbs>,
+    pub allow_back_save: HashSet<AllSymbs>,
     pub can_be_next: HashSet<AllSymbs>,
     pub name_holder: &'a mut NameHolder<N, T>
 }
@@ -186,6 +188,7 @@ impl<'a, N:Name, T:Hash + Eq> ParserParam<'a, N, T>{
         Self{
             lvl,
             prev_token_type,
+            allow_back_save: HashSet::new(),
             can_be_next,
             name_holder
         }
@@ -215,10 +218,13 @@ impl<'a, N:Name, T:Hash + Eq> ParserParam<'a, N, T>{
         ParserParam::<'b, N, T>{ 
             lvl: self.lvl + 1,
             prev_token_type: Some(cur_token), 
+            allow_back_save: HashSet::new(),
             can_be_next,
             name_holder: self.name_holder
          }
     }
+
+    pub fn allow_save(&mut self, value: AllSymbs) { self.allow_back_save.insert(value); }
 }
 
 enum ParserRet<N:Name>{
@@ -362,14 +368,14 @@ mod tokens_test{
 }
 
 
-fn _parse<N:Name, T: PpeTesteable + Eq + Hash, I: Iterator<Item = T>> 
-(parser_rs: &ParserRuleset<T>, tokens: &mut I, mut pp: ParserParam<N, T>) 
+fn _parse<N:Name+std::fmt::Debug, T: PpeTesteable + Eq + Hash + std::fmt::Debug, I: Iterator<Item = T>> 
+(parser_rs: &ParserRuleset<T>, tokens: &mut Tokens<T, I, 1>, mut pp: ParserParam<N, T>) 
 -> ParserRet<N>{    
     //TODO: only tail-rec or without rec
 
     let mut ret_expr = Expr::Empty;
 
-    loop{
+    'main_loop: loop{
         let token = tokens.next();
         if token.is_none(){
             if pp.lvl != 0 { 
@@ -381,6 +387,10 @@ fn _parse<N:Name, T: PpeTesteable + Eq + Hash, I: Iterator<Item = T>>
         let token = token.unwrap();
 
         let token_type = parser_rs.get_type(&token);  
+
+        println!("T_TYPE: {:?} [lvl={:?}]", token_type, pp.lvl);
+        if let Some(AllSymbs::Syntax(SyntaxSymbs::CloseBr)) = token_type { println!("token before close br: {:?}", ret_expr); } 
+
         if token_type.is_none() {
             //TODO:ERR:OUT: wrong token
             return ParserRet::new_bad()
@@ -388,6 +398,10 @@ fn _parse<N:Name, T: PpeTesteable + Eq + Hash, I: Iterator<Item = T>>
         let token_type = token_type.unwrap();
         if token_type.is_empty() { continue }
         if !pp.can_be_next.contains(&token_type) {
+            if pp.allow_back_save.contains(&token_type){
+                tokens.save_prev_token(token);
+                return ParserRet::new_expr(ret_expr)
+            }
             //TODO:ERR:OUT: wrong token
             return ParserRet::new_bad()
         }
@@ -437,8 +451,11 @@ fn _parse<N:Name, T: PpeTesteable + Eq + Hash, I: Iterator<Item = T>>
                                  if term_type == TermType::Func{
                                     return ParserRet::new_term(Term::new_func_by_param(obj_name, terms))
                                  } else {
-                                    return ParserRet::new_expr(Expr::new_predicate(obj_name, terms))
-                                    //here must be contniue?
+                                    if !ret_expr.is_empty() { panic!("expr must be empty") }
+                                    ret_expr = Expr::new_predicate(obj_name, terms);
+                                    pp.set_can_binary();
+                                    pp.allow_save(AllSymbs::Syntax(SyntaxSymbs::CloseBr));
+                                    continue 'main_loop
                                  }
                             }
                             first = false;

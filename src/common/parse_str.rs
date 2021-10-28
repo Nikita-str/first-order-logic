@@ -3,7 +3,7 @@ use crate::logic::{all_symbs::AllSymbs, operations::{BinaryOperations, Operation
 use super::parse::{ExactTesteable, ParseRuleType, ParserRuleset, PostfixTesteable, PrefixTesteable};
 
 
-#[derive(PartialEq, Eq, Hash)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub struct ParseStr<'a>{ 
     s: &'a str 
 }
@@ -59,7 +59,7 @@ impl<'a> ParseStr<'a>{
         add_exact_rules(AllSymbs::Op(Operations::Binary(BinaryOperations::Impl)), vec!["→", "->", "-->", "--->"]);
         add_exact_rules(AllSymbs::Op(Operations::Binary(BinaryOperations::And)), vec!["∧", "&", "&&"]);
         add_exact_rules(AllSymbs::Op(Operations::Binary(BinaryOperations::Or)), vec!["∨", "|", "||"]);
-        
+
         ruleset
     }
 }
@@ -164,7 +164,7 @@ mod parse_str_test{
         println!();
         println!();
 
-        let ps = ParseStr::new("∃x∀y P(x,y)   →∀yi∃x    P(x,  yi)");
+        let ps = ParseStr::new("∃x_x∀y P(x_x,y)   →∀y_i∃x    P(x,  y_i)");
         let expr = parse::parse::<StdName, _, _>(&ruleset, &mut ps.into_iter());
 
         match expr {

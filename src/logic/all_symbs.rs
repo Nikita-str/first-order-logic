@@ -6,7 +6,7 @@ use super::{
 };
 
 
-#[derive(PartialEq, Eq, Hash, Clone, Copy)]
+#[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
 pub enum AllSymbs{
     Op(Operations),
     Quant(Quants),
