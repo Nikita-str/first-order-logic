@@ -9,7 +9,9 @@ pub struct ParseStr<'a>{
 }
 
 impl<'a> ParseStr<'a>{
+    pub fn get_s(&self) -> &str { self.s }
     pub fn new(s: &'a str) -> Self { Self{ s } }
+
     fn get_len_while<F>(&self, f: F) -> usize
     where F: Fn(char) -> bool{
         let mut sh = 0;
@@ -121,94 +123,3 @@ impl<'a> ExactTesteable for ParseStr<'a>{
     fn test_exact(&self, other: &Self) -> bool { self.s.test_exact(other.s) }
 }
 
-#[cfg(test)]
-mod parse_str_test{
-    use crate::common::{name::StdName, parse};
-    use super::ParseStr;
-
-    fn test_help(ps: ParseStr, expects: Vec<&str>){
-        let mut iter = ps.into_iter(); 
-        for expect in expects{
-            assert_eq!(iter.next().unwrap().s, expect)
-        }
-        assert!(iter.next().is_none()) 
-    }
-
-    #[test]
-    fn iterator_tests(){
-        test_help(
-            ParseStr::new("∃x∀y P(x,y)   →∀yi∃x    P(x,  yi)"), 
-        vec!["∃", "x", "∀", "y", " ", "P", "(", "x", ",", "y", ")", "   ", "→", "∀", "yi", "∃", "x", "    ", "P", "(", "x", ",", "  ", "yi", ")"]
-        );
-
-        test_help(
-            ParseStr::new("∃∃ ||| &&& ---> wow_so_cool_name_101 25x25 (())"),
-            vec!["∃", "∃", " ", "|||", " ", "&&&", " ", "--->", " ", "wow_so_cool_name_101", " ", "25", "x25", " ", "(", "(", ")", ")"],
-        );
-    }
-
-    #[test]
-    fn parse_test(){
-        let ruleset = ParseStr::create_std_ruleset();
-
-        let ps = ParseStr::new("P(f(a, b), g(b, h(c)))"); // +
-        let expr = parse::parse::<StdName, _, _>(&ruleset, &mut ps.into_iter());
-
-        match expr {
-            None => println!("NONE :("),
-            Some(expr) => {
-                println!("EXPR : {:?}", expr)
-            }
-        }
-
-        println!("\n\n\n");
-
-        let ps = ParseStr::new("∃x∀y P(x,y)   →∀y_i∃x    P(x,  y_i)"); // +
-        let expr = parse::parse::<StdName, _, _>(&ruleset, &mut ps.into_iter());
-
-        match expr {
-            None => println!("NONE :("),
-            Some(expr) => {
-                println!("EXPR : {:?}", expr)
-            }
-        }
-
-        println!("\n\n\n");
-
-        let ps = ParseStr::new("P(a,b)&P(b,c)&P(c,a)"); // +
-        let expr = parse::parse::<StdName, _, _>(&ruleset, &mut ps.into_iter());
-
-        match expr {
-            None => println!("NONE :("),
-            Some(expr) => {
-                println!("EXPR : {:?}", expr)
-            }
-        }
-
-        println!("\n\n\n");
-
-        // must : And(Or(.., And(...)), ...)
-        let ps = ParseStr::new("(P(a,b)|P(b,c)&P(c,a))&P(a,b)"); 
-        let expr = parse::parse::<StdName, _, _>(&ruleset, &mut ps.into_iter());
-
-        match expr {
-            None => println!("NONE :("),
-            Some(expr) => {
-                println!("EXPR : {:?}", expr)
-            }
-        }
-
-        println!("\n\n\n");
-
-        // must : Or(And(..), And(..))
-        let ps = ParseStr::new("P(a,b)&P(b,c)|P(c,a)&P(a,b)"); 
-        let expr = parse::parse::<StdName, _, _>(&ruleset, &mut ps.into_iter());
-
-        match expr {
-            None => println!("NONE :("),
-            Some(expr) => {
-                println!("EXPR : {:?}", expr)
-            }
-        }
-    }
-}

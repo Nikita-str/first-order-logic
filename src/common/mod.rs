@@ -5,3 +5,6 @@ pub mod parse;
 pub mod parse_info;
 
 pub mod parse_str;
+
+#[cfg(test)]
+pub mod tests;

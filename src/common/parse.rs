@@ -227,6 +227,7 @@ impl<'a, N:Name, T:Hash + Eq> ParserParam<'a, N, T>{
     }
 
     pub fn allow_save(&mut self, value: AllSymbs) { self.allow_back_save.insert(value); }
+    pub fn disallow_save(&mut self, value: AllSymbs) { self.allow_back_save.remove(&value); }
 }
 
 enum ParserRet<N:Name>{
@@ -375,8 +376,6 @@ fn _parse<N:Name+std::fmt::Debug, T: PpeTesteable + Eq + Hash + std::fmt::Debug,
 -> ParserRet<N>{    
     //TODO: only tail-rec or without rec
 
-    let mut ret_expr = Expr::Empty;
-
     let mut try_take_binary = |pp: &mut ParserParam<_,_>|{
         let prev = pp.prev_token_type; 
         let prev_prior = if let Some(x) = prev { x.get_priority() } else { None };
@@ -397,22 +396,24 @@ fn _parse<N:Name+std::fmt::Debug, T: PpeTesteable + Eq + Hash + std::fmt::Debug,
         can_any
     };
 
+    let mut ret_expr = Expr::Empty;
+    if pp.lvl == 0 { pp.allow_save(AllSymbs::End) }
+
     'main_loop: loop{
         let token = tokens.next();
         
         if token.is_none(){
-            // TODO: DEL false; ADD pp.can_end (or END token)
-            if false && pp.lvl != 0 { 
-                //TODO:ERR:OUT: unexpected ending
-                return ParserRet::new_bad()
-            } 
-            return ParserRet::new_expr(ret_expr)
+            if pp.allow_back_save.contains(&AllSymbs::End) {
+                return ParserRet::new_expr(ret_expr)
+            }
+            //TODO:ERR:OUT: unexpected ending
+            return ParserRet::new_bad()
         }
         let token = token.unwrap();
 
         let token_type = parser_rs.get_type(&token);  
 
-        println!("T_TYPE: {:?} [lvl={:?}]", token_type, pp.lvl);
+        println!("T_TYPE: {:?} [lvl={:?}]  ::  [prev={:?}]", token_type, pp.lvl, pp.prev_token_type);
 
         if token_type.is_none() {
             //TODO:ERR:OUT: wrong token
@@ -421,7 +422,8 @@ fn _parse<N:Name+std::fmt::Debug, T: PpeTesteable + Eq + Hash + std::fmt::Debug,
         let token_type = token_type.unwrap();
         if token_type.is_empty() { continue }
         if !pp.can_be_next.contains(&token_type) {
-            if pp.allow_back_save.contains(&token_type){
+            if pp.lvl != 0 && pp.allow_back_save.contains(&token_type){
+                println!("BACK_RET: [ttype={:?}] [lvl={:?}]", token_type, pp.lvl);
                 tokens.save_prev_token(token);
                 return ParserRet::new_expr(ret_expr)
             }
@@ -443,6 +445,7 @@ fn _parse<N:Name+std::fmt::Debug, T: PpeTesteable + Eq + Hash + std::fmt::Debug,
 
                     if  try_take_binary(&mut pp) {
                         pp.allow_save(AllSymbs::Syntax(SyntaxSymbs::CloseBr));
+                        pp.allow_save(AllSymbs::End);
                         continue 'main_loop
                     } else {
                         return ParserRet::new_expr(ret_expr)
@@ -489,6 +492,7 @@ fn _parse<N:Name+std::fmt::Debug, T: PpeTesteable + Eq + Hash + std::fmt::Debug,
 
                                     if try_take_binary(&mut pp) {
                                         pp.allow_save(AllSymbs::Syntax(SyntaxSymbs::CloseBr));
+                                        pp.allow_save(AllSymbs::End);
                                         continue 'main_loop
                                     } else {
                                         return ParserRet::new_expr(ret_expr)
@@ -507,11 +511,14 @@ fn _parse<N:Name+std::fmt::Debug, T: PpeTesteable + Eq + Hash + std::fmt::Debug,
             } 
             AllSymbs::Syntax(SyntaxSymbs::CloseBr) => {
                 if let Some(AllSymbs::Term(_)) = pp.prev_token_type{
+                    println!("HERE: CLOSE BR [TERM]");
                     ParserRet::new_expr(ret_expr)
                 } else {
                     if ret_expr.is_empty() { return ParserRet::new_bad() }
                     if try_take_binary(&mut pp) {
+                        println!("HERE: CLOSE BR[->&|] prev={:?}", pp.prev_token_type);
                         pp.allow_save(AllSymbs::Syntax(SyntaxSymbs::CloseBr));
+                        pp.allow_save(AllSymbs::End);
                         continue 'main_loop
                     } else {
                         return ParserRet::new_expr(ret_expr)
@@ -528,6 +535,7 @@ fn _parse<N:Name+std::fmt::Debug, T: PpeTesteable + Eq + Hash + std::fmt::Debug,
                     ret_expr = ret_expr_temp.get_expr();
                     if ret_expr.is_empty() { return ParserRet::new_bad() }
                     
+                    pp.disallow_save(AllSymbs::End);
                     pp.set_can_binary_or_close();
                     continue;
                 }
@@ -545,6 +553,7 @@ fn _parse<N:Name+std::fmt::Debug, T: PpeTesteable + Eq + Hash + std::fmt::Debug,
 
                     if try_take_binary(&mut pp) {
                         pp.allow_save(AllSymbs::Syntax(SyntaxSymbs::CloseBr));
+                        pp.allow_save(AllSymbs::End);
                         continue 'main_loop
                     } else {
                         return ParserRet::new_expr(ret_expr)
