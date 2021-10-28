@@ -432,8 +432,19 @@ fn _parse<N:Name+std::fmt::Debug, T: PpeTesteable + Eq + Hash + std::fmt::Debug,
         }
 
         return match token_type {
-            AllSymbs::Op(Operations::Unary(uop)) => 
-                _parse(parser_rs, tokens, pp.next(token_type)).if_expr(|x|x.apply_unary_op(uop)),
+            AllSymbs::Op(Operations::Unary(uop)) => {
+                    let expr = _parse(parser_rs, tokens, pp.next(token_type)).if_expr(|x|x.apply_unary_op(uop));
+                    if !expr.is_expr() { return expr }
+                    ret_expr = expr.get_expr();
+                    
+                    if  try_take_binary(&mut pp) {
+                        pp.allow_save(AllSymbs::Syntax(SyntaxSymbs::CloseBr));
+                        pp.allow_save(AllSymbs::End);
+                        continue 'main_loop
+                    } else {
+                        return ParserRet::new_expr(ret_expr)
+                    }
+                }
             AllSymbs::Quant(qua) => {
                     let expr = _parse(parser_rs, tokens, pp.new_after_quant(qua)).if_name_then_pret(
                         |x|{
