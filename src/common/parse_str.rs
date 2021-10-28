@@ -23,6 +23,7 @@ impl<'a> ParseStr<'a>{
         let mut ruleset = ParserRuleset::new();
 
         ruleset.add_rule(AllSymbs::Empty, ParseRuleType::Prefix, ParseStr::new(" "));
+        ruleset.add_rule(AllSymbs::Empty, ParseRuleType::Exact, ParseStr::new(":"));
 
         let mut add_rules = |term_type, vec:Vec<&'a str>|{
             for v in vec{

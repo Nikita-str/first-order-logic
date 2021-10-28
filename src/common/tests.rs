@@ -175,7 +175,22 @@ mod parse_str_test{
     fn parse_test_2(){
         let ruleset = ParseStr::create_std_ruleset();
 
-        let ps = ParseStr::new("for_any x for_any y exist z P(x, y, z)"); 
+        let ps = ParseStr::new("for_any x P(x) -> exist x P(x)"); 
+        let expr = parse::parse::<StdName, _, _>(&ruleset, &mut ps.into_iter());
+
+        match expr {
+            None => println!("NONE :("),
+            Some(expr) => {
+                println!("EXPR : {:?}", expr)
+            }
+        }
+    }
+    
+    #[test]
+    fn parse_test_3(){
+        let ruleset = ParseStr::create_std_ruleset();
+
+        let ps = ParseStr::new("for_any x for_any y exist x P(x, y, x)"); 
         let expr = parse::parse::<StdName, _, _>(&ruleset, &mut ps.into_iter());
 
         match expr {

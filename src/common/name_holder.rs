@@ -17,6 +17,8 @@ pub struct NameHolder<N: Name, T: Hash + Eq>{
     last_names: HashMap<TermType, N>,
 
     banned_names: HashMap<TermType, HashSet<N>>,
+
+    renaming: HashMap<N, Vec<N>>
 }
 
 impl<N: Name, T: Hash + Eq> NameHolder<N, T>{
@@ -44,17 +46,15 @@ impl<N: Name, T: Hash + Eq> NameHolder<N, T>{
             names, 
             last_names,
             banned_names, 
+            renaming: HashMap::new(),
         }
     }
 }
 
 impl<N: Name, T: Hash + Eq> NameHolder<N, T>{
-    pub fn get_name(&mut self, term_type: TermType, new_term: T) -> N{
+    fn real_add_name(&mut self,term_type: TermType, new_term: T) -> N{
         let map = self.names.get_mut(&term_type).unwrap();
-        if let Some(term) = map.get(&new_term){
-            term.clone()
-        } else {
-            let last_name = self.last_names.get(&term_type).unwrap().next_tst_name();
+        let last_name = self.last_names.get(&term_type).unwrap().next_tst_name();
             self.last_names.insert(term_type, last_name.clone());
             if term_type == TermType::Const { 
                 self.const_term.insert(last_name.clone(), Term::new_const_by_param(last_name.clone())); 
@@ -63,6 +63,13 @@ impl<N: Name, T: Hash + Eq> NameHolder<N, T>{
             }
             map.insert(new_term, last_name.clone());
             last_name
+    }
+
+    pub fn get_name(&mut self, term_type: TermType, new_term: T) -> N{
+        if let Some(name) = self.get_last_existing_name(term_type, &new_term){
+            name.clone()
+        } else { 
+            self.real_add_name(term_type, new_term) 
         }
     }
 
@@ -72,6 +79,47 @@ impl<N: Name, T: Hash + Eq> NameHolder<N, T>{
     pub fn exist_name(&self, term_type: TermType, term: &T) -> bool{
         //unsafe{self.names.get(&term_type).unwrap_unchecked()}.contains_key(term)
         self.names.get(&term_type).unwrap().contains_key(term)
+    }
+    /// # panic 
+    /// if ```!self.exist_name(term_type, term)```
+    pub fn get_initial_existing_name(&self, term_type: TermType, term: &T) -> N{
+        let map = self.names.get(&term_type).unwrap();
+        if let Some(name) = map.get(term){ name.clone() } 
+        else { panic!("name not exist!") }
+    }
+
+    pub fn get_last_existing_name(&self, term_type: TermType, term: &T) -> Option<&N>{
+        let map = self.names.get(&term_type).unwrap();
+        if let Some(name) = map.get(&term){ 
+            if self.renaming.contains_key(name) {
+                self.renaming.get(name).unwrap().last()
+            } else {
+                Some(name)
+            }
+        } else {
+            None
+        }
+    }
+
+    /// if name not exist just do the same as ```get_name``` do
+    /// 
+    /// if name already exist - create new name for that term
+    /// 
+    /// it may be helpful when the same name used in different cases. 
+    /// 
+    /// for example: 
+    /// `∃x: P(x) -> ∀x: R(x)`
+    /// but it mean
+    /// `∃x_0: P(x_0) -> ∀x_1: R(x_1)`
+    pub fn get_name_uncond_new(&mut self, term_type: TermType, new_term: T) -> N { 
+        if !self.exist_name(term_type, &new_term) { self.get_name(term_type, new_term) }
+        else{
+            let old_name = self.get_initial_existing_name(term_type, &new_term);
+            let new_name = self.real_add_name(term_type, new_term);
+            if !self.renaming.contains_key(&old_name) { self.renaming.insert(old_name.clone(), Vec::new()); }
+            self.renaming.get_mut(&old_name).unwrap().push(new_name.clone());
+            new_name
+        }
     }
 
     fn get_param_len_helper(map: &HashMap<N, usize>, name: &N) -> Option<usize> { map.get(name).and_then(|x|Some(*x)) }

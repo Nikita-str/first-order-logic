@@ -438,16 +438,12 @@ fn _parse<N:Name+std::fmt::Debug, T: PpeTesteable + Eq + Hash + std::fmt::Debug,
                     let expr = _parse(parser_rs, tokens, pp.new_after_quant(qua)).if_name_then_pret(
                         |x|{
                             let term_type = x.name_type();
-                            if !pp.name_holder.ban_name(term_type, x.clone()) {
-                                println!("name already use other quantor!");
-                                ParserRet::new_bad()
-                            } else {
-                                let r = _parse(parser_rs, tokens, pp.next(token_type)).if_expr(
-                                    |y|y.apply_quant(qua, x.clone())
-                                );
-                                pp.name_holder.unban_name(term_type, &x);
-                                r
-                            }
+                            let r = _parse(parser_rs, tokens, pp.next(token_type)).if_expr(
+                                |y|y.apply_quant(qua, x.clone())
+                            );
+                            pp.name_holder.unban_name(term_type, &x);
+                            println!("Q UNBAN: {:?}", x);
+                            r
                         }
                     );
                     if !expr.is_expr() { return expr }
@@ -461,6 +457,21 @@ fn _parse<N:Name+std::fmt::Debug, T: PpeTesteable + Eq + Hash + std::fmt::Debug,
                         return ParserRet::new_expr(ret_expr)
                     }
                 }
+
+            AllSymbs::Term(TermType::Var) if matches!(pp.prev_token_type, Some(AllSymbs::Quant(_))) => {
+                let term_type = TermType::Var; 
+                let obj_name = pp.name_holder.get_last_existing_name(term_type, &token).and_then(|x|Some(x.clone()));
+                println!("AFTER Q: OLD = {:?}", obj_name);    
+                if obj_name.is_some() && pp.name_holder.is_name_banned(term_type, &obj_name.unwrap()) {
+                    println!("name already use other quantor!");
+                    ParserRet::new_bad()
+                } else {
+                    let obj_name = pp.name_holder.get_name_uncond_new(term_type, token);
+                    println!("AFTER Q: NEW = {:?}", obj_name);    
+                    pp.name_holder.ban_name(term_type, obj_name.clone());
+                    ParserRet::new_name(obj_name)
+                }
+            }
             AllSymbs::Term(term_type) => {
                 let obj_name = pp.name_holder.get_name(term_type, token);
                 match term_type{
