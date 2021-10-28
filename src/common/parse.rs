@@ -436,9 +436,19 @@ fn _parse<N:Name+std::fmt::Debug, T: PpeTesteable + Eq + Hash + std::fmt::Debug,
                 _parse(parser_rs, tokens, pp.next(token_type)).if_expr(|x|x.apply_unary_op(uop)),
             AllSymbs::Quant(qua) => {
                     let expr = _parse(parser_rs, tokens, pp.new_after_quant(qua)).if_name_then_pret(
-                        |x|_parse(parser_rs, tokens, pp.next(token_type)).if_expr(
-                            |y|y.apply_quant(qua, x)
-                        )
+                        |x|{
+                            let term_type = x.name_type();
+                            if !pp.name_holder.ban_name(term_type, x.clone()) {
+                                println!("name already use other quantor!");
+                                ParserRet::new_bad()
+                            } else {
+                                let r = _parse(parser_rs, tokens, pp.next(token_type)).if_expr(
+                                    |y|y.apply_quant(qua, x.clone())
+                                );
+                                pp.name_holder.unban_name(term_type, &x);
+                                r
+                            }
+                        }
                     );
                     if !expr.is_expr() { return expr }
                     ret_expr = expr.get_expr();

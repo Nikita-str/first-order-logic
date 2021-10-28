@@ -1,4 +1,4 @@
-use std::{collections::{HashMap}, hash::Hash};
+use std::{collections::{HashMap, HashSet}, hash::Hash};
 use crate::logic::{term_type::TermType, terms::{Term}};
 
 use super::name::{Name};
@@ -15,16 +15,20 @@ pub struct NameHolder<N: Name, T: Hash + Eq>{
 
     names: HashMap<TermType, HashMap<T, N>>,
     last_names: HashMap<TermType, N>,
+
+    banned_names: HashMap<TermType, HashSet<N>>,
 }
 
 impl<N: Name, T: Hash + Eq> NameHolder<N, T>{
     pub fn new() -> Self{
         let mut names = HashMap::new();
         let mut last_names = HashMap::new();
+        let mut banned_names = HashMap::new();
 
         let mut insert = |t_type|{
             last_names.insert(t_type, N::first_name(t_type));
             names.insert(t_type, HashMap::new());
+            banned_names.insert(t_type, HashSet::new());
         };
 
         insert(TermType::Var);
@@ -37,7 +41,9 @@ impl<N: Name, T: Hash + Eq> NameHolder<N, T>{
             const_term: HashMap::new(), 
             func_lens: HashMap::new(), 
             pred_lens: HashMap::new(),
-            names, last_names 
+            names, 
+            last_names,
+            banned_names, 
         }
     }
 }
@@ -93,4 +99,8 @@ impl<N: Name, T: Hash + Eq> NameHolder<N, T>{
             _ => panic!("term such type {:?} has no params len", term_type)
         }
     }
+
+    pub fn is_name_banned(&mut self, term_type: TermType, name: &N) -> bool { self.banned_names.get(&term_type).unwrap().contains(name) }
+    pub fn ban_name(&mut self, term_type: TermType, name: N) -> bool { self.banned_names.get_mut(&term_type).unwrap().insert(name) }
+    pub fn unban_name(&mut self, term_type: TermType, name: &N) -> bool { self.banned_names.get_mut(&term_type).unwrap().remove(name) }
 }

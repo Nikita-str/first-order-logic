@@ -37,10 +37,10 @@ impl<'a> ParseStr<'a>{
         let var_vec = vec!["X_", "x_", "Y_", "y_", "Z_", "z_", "W_", "w_"];
         add_rules(TermType::Var, var_vec);
 
-        let func_vec = vec!["f", "g", "h"];
+        let func_vec = vec!["f_", "g_", "h_"];
         add_rules(TermType::Func, func_vec);
 
-        let pred_vec = vec!["P", "R", "Q"];
+        let pred_vec = vec!["P_", "R_", "Q_"];
         add_rules(TermType::Pred, pred_vec);
 
         let mut add_exact_rules = |symb_type, vec: Vec<&'a str>|{

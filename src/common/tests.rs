@@ -90,7 +90,20 @@ mod parse_str_test{
         parse_ok_test_help("P(a, f(b, c)) & P(f(a, b), c)");
         parse_wrong_test_help("P(a, f(b, c)) & P(f(b), c)");
 
-        //TODO : wrong : exist x exist !![x]!!  P(x, x)
+        parse_ok_test_help("for_any x for_any y exist z P(x, y, z)");
+        parse_ok_test_help("for_any x for_any y for_any z P(x, y, z)");
+        parse_wrong_test_help("for_any x for_any y exist x P(x, y, x)");
+        parse_wrong_test_help("for_any x for_any y for_any x P(x, y, x)");
+
+        parse_ok_test_help("for_any x P(x, b)");
+        parse_wrong_test_help("for_any a P(a, b)");
+
+        parse_wrong_test_help("exist x exist x P(x, x)");
+
+        parse_ok_test_help("exist x P(x) --> exist x P(x)");
+        parse_ok_test_help("exist x P(a, x) --> exist x P(x, b)");
+        parse_wrong_test_help("exist x P(a, x) --> exist x any x P(x, x)");
+        parse_wrong_test_help("exist x P(a, x) --> exist x P(x)");
     }
 
     #[test]
@@ -162,7 +175,7 @@ mod parse_str_test{
     fn parse_test_2(){
         let ruleset = ParseStr::create_std_ruleset();
 
-        let ps = ParseStr::new("( P(x) & (P(y) | exist z P(z)) ) & P(y)    --->    (( P(x) & ( P(x) ) | Q(x) )) & P(x)"); 
+        let ps = ParseStr::new("for_any x for_any y exist z P(x, y, z)"); 
         let expr = parse::parse::<StdName, _, _>(&ruleset, &mut ps.into_iter());
 
         match expr {
