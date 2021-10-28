@@ -22,7 +22,7 @@ pub struct NameHolder<N: Name, T: Hash + Eq>{
     renaming: HashMap<N, Vec<N>>,
     rename_to_init: HashMap<N, (usize, N)>,
 
-    free_var: HashSet<N>,
+    free_var: HashMap<N, N>, // initial name to free var
 }
 
 impl<N: Name, T: Hash + Eq> NameHolder<N, T>{
@@ -53,7 +53,7 @@ impl<N: Name, T: Hash + Eq> NameHolder<N, T>{
             banned_names, 
             rename_to_init: HashMap::new(),
             renaming: HashMap::new(),
-            free_var: HashSet::new(),
+            free_var: HashMap::new(),
         }
     }
 }
@@ -104,6 +104,23 @@ impl<N: Name, T: Hash + Eq + Clone> NameHolder<N, T>{
         } else { 
             self.real_add_name(term_type, new_term) 
         }
+    }
+
+    pub fn get_free_var(&mut self, term: T) -> N{
+        let init_name = self.names.get(&TermType::Var).unwrap().get(&term);
+        let init_name = init_name.unwrap().clone();
+        if let Some(free_var_name) = self.free_var.get(&init_name) { 
+            free_var_name.clone() 
+        } else {
+            let free_var = self.get_name_uncond_new(TermType::Var, term);
+            self.add_free_var(init_name.clone(), free_var.clone());
+            free_var
+        }
+    }
+    pub fn add_new_free_var(&mut self, term: T) -> N{ 
+        let free_var = self.get_name_uncond_new(TermType::Var, term);
+        self.add_free_var(free_var.clone(), free_var.clone());
+        free_var
     }
 }
 
@@ -166,10 +183,10 @@ impl<N: Name, T: Hash + Eq> NameHolder<N, T>{
     pub fn ban_name(&mut self, term_type: TermType, name: N) -> bool { self.banned_names.get_mut(&term_type).unwrap().insert(name) }
     pub fn unban_name(&mut self, term_type: TermType, name: &N) -> bool { self.banned_names.get_mut(&term_type).unwrap().remove(name) }
 
-    pub fn add_free_var(&mut self, var_name: N){ self.free_var.insert(var_name); }
-    pub fn is_free_var(&self, var_name: &N) -> bool { self.free_var.contains(var_name) }
+    fn add_free_var(&mut self, init_name: N, var_name: N){ self.free_var.insert(init_name, var_name); }
+    pub fn is_free_var(&self, var_name: &N) -> bool { self.free_var.contains_key(var_name) }
 
-    pub fn get_free_vars(&self) -> &HashSet<N> { &self.free_var }
+    pub fn get_free_vars(&self) -> &HashMap<N, N> { &self.free_var }
     pub fn get_init_of_renaming(&self) -> &HashMap<N, (usize, N)> { &self.rename_to_init }
 
     pub fn token_by_name_unchecked(&self, name: &N) -> (usize, &T) {

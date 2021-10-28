@@ -1,3 +1,30 @@
+use std::io;
+use first_order_logic::common::name::StdName;
+use first_order_logic::common::parse_str::ParseStr;
+use first_order_logic::common::parse;
+
+
+fn main(){
+    let std_in = io::stdin();
+    let ruleset = ParseStr::create_std_ruleset();
+    let mut input_str = String::new();
+    println!("helpful symbs: ∃∃∃ ∀∀∀ ¬¬¬ →→→ ∧∧∧ ∨∨∨");
+    println!("please write a first-order-logic expr:");
+    if let Err(_) = std_in.read_line(&mut input_str) { 
+        println!("failed to read line!");
+        return 
+    }
+    let ps = ParseStr::new(input_str.trim_end()); 
+    let expr = parse::parse::<StdName, _, _>(&ruleset, &mut ps.into_iter());
+    match expr {
+        Err(_) => println!("invalid input"),
+        Ok(ok) => {
+            println!("expr: {}", ok)
+        }
+    }
+}
+
+/*
 use first_order_logic::{common::name::{StdName}, logic::{term_type::TermType, predicate_expr::PredicateExpr, terms::{ConstTerm, FuncTerm, Term, VarTerm}}};
 
 #[allow(non_snake_case)]
@@ -70,3 +97,4 @@ fn main() {
         println!("N0 :(")
     }
 }
+*/

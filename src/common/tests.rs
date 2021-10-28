@@ -178,13 +178,17 @@ mod parse_str_test{
         let ruleset = ParseStr::create_std_ruleset();
 
         //let ps = ParseStr::new("! exist x P(x) --> for_all x !P(x) & R(y)"); 
-        let ps = ParseStr::new("P(x, y) & exist x (R(x) & P(y, x)) & R(y) & R(x)"); // free vars: x_0, y_0, x_3 => 1, 2, 4 
+        //let ps = ParseStr::new("P(x, y) & exist x (R(x) & P(y, x)) & R(y) & R(x)"); // free vars: x_0, y_0, x_3 => 1, 2, 4 
         //let ps = ParseStr::new("for_all x (P(x, y) & R(x, y)) ---> (Q(x) & (Q(y) | Q(x))) "); 
+        
+        let ps = ParseStr::new("P(x) & exist x P(x) & P(x)"); // HERE ONLY 2 VARS!!!
         let expr = parse::parse::<StdName, _, _>(&ruleset, &mut ps.into_iter());
-
+        
         match expr {
             Err(_) => println!("NONE :("),
             Ok(ok) => {
+                print!("free vars: ");
+                ok.display_free_vars();
                 println!("EXPR : {}", ok)
             }
         }

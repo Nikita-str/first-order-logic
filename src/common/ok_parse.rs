@@ -14,8 +14,28 @@ impl<N:Name, T: Hash + Eq> OkParse<N, T>{
     pub fn get_mut_expr(&mut self) -> &mut Expr<N> { &mut self.expr }
     pub fn get_name_holder(&self) -> &NameHolder<N, T> { &self.name_holder }
     pub fn get_mut_name_holder(&mut self) -> &mut NameHolder<N, T> { &mut self.name_holder }
+
+    /// close the logic formula
+    /// 
+    /// it means that any free vars will be limited with 
+    pub fn expr_close(&mut self){
+       // self.name_holder.get_free_vars()
+    }
 }
 
+impl<N:Name, T: Hash + Eq + Display> OkParse<N, T>{
+    pub fn display_free_vars(&self){
+        print!("{{ ");
+        let mut first = true;
+        for var in self.name_holder.get_free_vars().values(){
+            if !first { print!(", "); }
+            let (sh, token) = self.name_holder.token_by_name_unchecked(var);
+            if sh == 0 { print!("{}", token) } else { print!("{}_{}", token, sh) };
+            first = false;
+        }
+        println!(" }}");
+    }
+}
 
 impl<N, T> Display for OkParse<N, T>
 where  N: Name, T: Hash + Eq + Display, 

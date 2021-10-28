@@ -489,18 +489,14 @@ fn _parse<N:Name+std::fmt::Debug, T: PpeTesteable + Eq + Hash + Clone + std::fmt
                 let term_type = TermType::Var; 
                 if !pp.name_holder.exist_name(term_type, &token) { 
                     // it not after Q and it is new... => it is free var!
-                    let obj_name = pp.name_holder.get_name_uncond_new(term_type, token);
-                    pp.name_holder.add_free_var(obj_name.clone());
+                    let obj_name = pp.name_holder.add_new_free_var(token);
                     return ParserRet::new_name(obj_name)
                 }
                 let obj_name = pp.name_holder.get_last_existing_name(term_type, &token).unwrap();
                 let obj_name = 
-                    if !pp.name_holder.is_name_banned(term_type, obj_name) 
-                    && !pp.name_holder.is_free_var(obj_name){
-                        // this var is new free var! 
-                        let obj_name = pp.name_holder.get_name_uncond_new(term_type, token);
-                        pp.name_holder.add_free_var(obj_name.clone());
-                        obj_name
+                    if !pp.name_holder.is_name_banned(term_type, obj_name) {
+                        // this var is free var! 
+                        pp.name_holder.get_free_var(token)
                     } else {
                         // okey, it just old var (get name return the newest from old)
                         pp.name_holder.get_name(term_type, token)
