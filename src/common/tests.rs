@@ -77,8 +77,20 @@ mod parse_str_test{
         parse_wrong_test_help("( P(x) & (P(y) |  exist z P(z)) ) & P(y)    --->    (( P(x) & ( P(x) )) | Q(x) )) & P(x)");
         parse_wrong_test_help("( P(x) & (P(y) |  exist z P(z)) ) & P(y)    --->    (( P(x) & ( P(x) ) |) Q(x) ) & P(x)");
 
+        parse_wrong_test_help("P(x) & P(x, y)");
+        parse_ok_test_help("P(x, y) & R(y)");
+        parse_ok_test_help("P(x, y) & P(x, y)");
+        parse_wrong_test_help("P(x, y) & P(z, x) & P(x) & P(x, y)");
+        parse_ok_test_help("P(x, y) & P(z, x) & Q(x) & P(x, y)");
+
+        parse_ok_test_help("P(f(a, b), f(a, b))");
+        parse_wrong_test_help("P(f(a, b), f(a))");
+        parse_ok_test_help("P(f(a, f(b, c)), c)");
+        parse_wrong_test_help("P(f(a, f(b, c, a)), c)");
+        parse_ok_test_help("P(a, f(b, c)) & P(f(a, b), c)");
+        parse_wrong_test_help("P(a, f(b, c)) & P(f(b), c)");
+
         //TODO : wrong : exist x exist !![x]!!  P(x, x)
-        //TODO : wrong : P(x) & P(x, x)
     }
 
     #[test]

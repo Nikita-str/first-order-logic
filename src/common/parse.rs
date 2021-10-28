@@ -482,12 +482,23 @@ fn _parse<N:Name+std::fmt::Debug, T: PpeTesteable + Eq + Hash + std::fmt::Debug,
                             } else if name.is_term() { 
                                 terms.push(name.get_term()) 
                             } else if name.is_expr(){ // empty expr when ')'
-                                 let expr = name.get_expr();
-                                 if !expr.is_empty() { panic!("we cant take such type of expr!") }
-                                 if term_type == TermType::Func{
+                                let expr = name.get_expr();
+                                if !expr.is_empty() { panic!("we cant take such type of expr!") }
+                                // [+] check params len
+                                if let Some(old_size) = pp.name_holder.get_param_len(term_type, &obj_name) {
+                                    if old_size != terms.len() { 
+                                        println!("previously params len was {:?} but now its len {:?}", old_size, terms.len());
+                                        return ParserRet::new_bad()
+                                    }
+                                } else {
+                                    pp.name_holder.set_param_len(term_type, obj_name.clone(), terms.len());
+                                }
+                                // [-] check params len
+                                if term_type == TermType::Func{
                                     return ParserRet::new_term(Term::new_func_by_param(obj_name, terms))
-                                 } else {
+                                } else {
                                     if !ret_expr.is_empty() { panic!("expr must be empty") }
+
                                     ret_expr = Expr::new_predicate(obj_name, terms);
 
                                     if try_take_binary(&mut pp) {
@@ -497,7 +508,7 @@ fn _parse<N:Name+std::fmt::Debug, T: PpeTesteable + Eq + Hash + std::fmt::Debug,
                                     } else {
                                         return ParserRet::new_expr(ret_expr)
                                     }
-                                 }
+                                }
                             }
                             first = false;
                         }

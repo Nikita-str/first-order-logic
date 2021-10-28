@@ -1,4 +1,4 @@
-use crate::logic::operations::{BinaryOperations, UnaryOperations};
+use crate::logic::operations::{BinaryOperations};
 
 use super::{
     syntax_symbs::{SYNTAX_SYMBS_AMOUNT, SyntaxSymbs}, 
