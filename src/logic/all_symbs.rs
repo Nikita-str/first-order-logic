@@ -1,3 +1,5 @@
+use crate::logic::operations::{BinaryOperations, UnaryOperations};
+
 use super::{
     syntax_symbs::{SYNTAX_SYMBS_AMOUNT, SyntaxSymbs}, 
     operations::{OP_TYPE_AMOUNT, Operations}, 
@@ -21,4 +23,14 @@ pub const SYMBS_AMOUNT:usize = 1 + SYNTAX_SYMBS_AMOUNT + OP_TYPE_AMOUNT + QUANTS
 
 impl AllSymbs{
     pub fn is_empty(&self) -> bool { AllSymbs::Empty == *self }
+
+    pub fn get_priority(&self) -> Option<usize>{
+        match self {
+            AllSymbs::Op(Operations::Unary(_)) | AllSymbs::Quant(_) => Some(4),
+            AllSymbs::Op(Operations::Binary(BinaryOperations::And)) => Some(3),
+            AllSymbs::Op(Operations::Binary(BinaryOperations::Or)) => Some(2),
+            AllSymbs::Op(Operations::Binary(BinaryOperations::Impl)) => Some(1),
+            _ => None
+        }
+    }
 }

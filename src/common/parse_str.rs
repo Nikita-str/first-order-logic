@@ -164,7 +164,7 @@ mod parse_str_test{
         println!();
         println!();
 
-        let ps = ParseStr::new("∃x_x∀y P(x_x,y)   →∀y_i∃x    P(x,  y_i)");
+        let ps = ParseStr::new("∃x∀y P(x,y)   →∀y_i∃x    P(x,  y_i)");
         let expr = parse::parse::<StdName, _, _>(&ruleset, &mut ps.into_iter());
 
         match expr {
