@@ -120,7 +120,7 @@ pub fn parse<N:Name+std::fmt::Debug, T: PpeTesteable + Hash + Eq + std::fmt::Deb
     let mut name_holder = NameHolder::<N, T>::new();
     let mut tokens = Tokens::<_, _, 1>::new(tokens);
     let expr = _parse(parser_rs, &mut tokens, ParserParam::new(& mut name_holder));
-    
+    println!("free vars: {:?}", name_holder.get_free_vars());
     match expr {
         ParserRet::Expr(expr) => Some(expr),
         _ => { 
@@ -376,7 +376,7 @@ fn _parse<N:Name+std::fmt::Debug, T: PpeTesteable + Eq + Hash + std::fmt::Debug,
 -> ParserRet<N>{    
     //TODO: only tail-rec or without rec
 
-    let mut try_take_binary = |pp: &mut ParserParam<_,_>|{
+    let try_take_binary = |pp: &mut ParserParam<_,_>|{
         let prev = pp.prev_token_type; 
         let prev_prior = if let Some(x) = prev { x.get_priority() } else { None };
         let prev_prior = prev_prior.unwrap_or(0);
@@ -483,10 +483,33 @@ fn _parse<N:Name+std::fmt::Debug, T: PpeTesteable + Eq + Hash + std::fmt::Debug,
                     ParserRet::new_name(obj_name)
                 }
             }
+            AllSymbs::Term(TermType::Var) => {
+                let term_type = TermType::Var; 
+                if !pp.name_holder.exist_name(term_type, &token) { 
+                    // it not after Q and it is new... => it is free var!
+                    let obj_name = pp.name_holder.get_name_uncond_new(term_type, token);
+                    pp.name_holder.add_free_var(obj_name.clone());
+                    return ParserRet::new_name(obj_name)
+                }
+                let obj_name = pp.name_holder.get_last_existing_name(term_type, &token).unwrap();
+                let obj_name = 
+                    if !pp.name_holder.is_name_banned(term_type, obj_name) 
+                    && !pp.name_holder.is_free_var(obj_name){
+                        // this var is new free var! 
+                        let obj_name = pp.name_holder.get_name_uncond_new(term_type, token);
+                        pp.name_holder.add_free_var(obj_name.clone());
+                        obj_name
+                    } else {
+                        // okey, it just old var (get name return the newest from old)
+                        pp.name_holder.get_name(term_type, token)
+                    };
+                ParserRet::new_name(obj_name)
+            }
             AllSymbs::Term(term_type) => {
                 let obj_name = pp.name_holder.get_name(term_type, token);
                 match term_type{
-                    TermType::Var | TermType::Const => ParserRet::new_name(obj_name),
+                    TermType::Const => ParserRet::new_name(obj_name),
+                    TermType::Var => panic!("we cant be here"),
                     _ => {
                         // after Func/Pred name stay always '(' :
                         let open_br = _parse(

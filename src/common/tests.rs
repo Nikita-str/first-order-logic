@@ -181,7 +181,7 @@ mod parse_str_test{
     fn parse_test_2(){
         let ruleset = ParseStr::create_std_ruleset();
 
-        let ps = ParseStr::new("for_any x P(x) -> exist x P(x)"); 
+        let ps = ParseStr::new("exist x Q(x) & (P(x) -> exist x R(x, x))"); // ERROR: must add for_all for second x ! => 3 vars
         let expr = parse::parse::<StdName, _, _>(&ruleset, &mut ps.into_iter());
 
         match expr {
@@ -196,7 +196,8 @@ mod parse_str_test{
     fn parse_test_3(){
         let ruleset = ParseStr::create_std_ruleset();
 
-        let ps = ParseStr::new("! exist x P(x) --> for_all x !P(x) & R(y)"); 
+        //let ps = ParseStr::new("! exist x P(x) --> for_all x !P(x) & R(y)"); 
+        let ps = ParseStr::new("P(x, y) & exist x (R(x) & P(y, x)) & R(y) & R(x)"); // free vars: x_0, y_0, x_3 => 1, 2, 4 
         let expr = parse::parse::<StdName, _, _>(&ruleset, &mut ps.into_iter());
 
         match expr {

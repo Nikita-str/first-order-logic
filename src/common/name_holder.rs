@@ -18,7 +18,9 @@ pub struct NameHolder<N: Name, T: Hash + Eq>{
 
     banned_names: HashMap<TermType, HashSet<N>>,
 
-    renaming: HashMap<N, Vec<N>>
+    renaming: HashMap<N, Vec<N>>,
+
+    free_var: HashSet<N>,
 }
 
 impl<N: Name, T: Hash + Eq> NameHolder<N, T>{
@@ -47,6 +49,7 @@ impl<N: Name, T: Hash + Eq> NameHolder<N, T>{
             last_names,
             banned_names, 
             renaming: HashMap::new(),
+            free_var: HashSet::new(),
         }
     }
 }
@@ -148,7 +151,12 @@ impl<N: Name, T: Hash + Eq> NameHolder<N, T>{
         }
     }
 
-    pub fn is_name_banned(&mut self, term_type: TermType, name: &N) -> bool { self.banned_names.get(&term_type).unwrap().contains(name) }
+    pub fn is_name_banned(&self, term_type: TermType, name: &N) -> bool { self.banned_names.get(&term_type).unwrap().contains(name) }
     pub fn ban_name(&mut self, term_type: TermType, name: N) -> bool { self.banned_names.get_mut(&term_type).unwrap().insert(name) }
     pub fn unban_name(&mut self, term_type: TermType, name: &N) -> bool { self.banned_names.get_mut(&term_type).unwrap().remove(name) }
+
+    pub fn add_free_var(&mut self, var_name: N){ self.free_var.insert(var_name); }
+    pub fn is_free_var(&self, var_name: &N) -> bool { self.free_var.contains(var_name) }
+
+    pub fn get_free_vars(&self) -> &HashSet<N> { &self.free_var }
 }
