@@ -1,6 +1,6 @@
 use std::{fmt::Display, hash::Hash};
 
-use crate::logic::{default_term::DefaultTerm, expr::{Expr, ExprQuant}, operations::{BinaryOperations, UnaryOperations}, quants::Quants, substit::{Substitution, SubstitutionApply}, term_type::TermType, terms::{Term, VarTerm}};
+use crate::logic::{default_term::DefaultTerm, expr::{Expr}, operations::{BinaryOperations, UnaryOperations}, quants::Quants, substit::{Substitution, SubstitutionApply}, term_type::TermType, terms::{Term, VarTerm}};
 
 use super::{name::Name, name_holder::NameHolder};
 
@@ -60,7 +60,17 @@ impl<N:Name, T:Hash + Eq + Clone> OkParse<N,T>{
         subst.apply(&mut self.expr);
     }
 
-    fn exist_quant_create_subst(nh: &mut NameHolder<N, T>, expr: &mut Expr<N>, params: &mut Vec<Term<N>>){
+    /* 
+    // need inner struct for params
+    // cause it work with unsafe ... ok just comment it
+
+    fn _exist_quant_create_subst(
+        nh: &mut NameHolder<N, T>, 
+        expr: &mut Expr<N>, 
+        params: &mut Vec<Term<N>>, 
+        def_terms: &(T, T), 
+        substit: &mut Substitution<N>)
+    {
         if !expr.is_quant() { return }
         let quant = expr.get_expr_quant().get_quant();
         match quant {
@@ -70,15 +80,17 @@ impl<N:Name, T:Hash + Eq + Clone> OkParse<N,T>{
                 *expr = q;
                 // here create substitute : TODO
 
-                Self::exist_quant_create_subst(nh, expr, params)
+                Self::exist_quant_create_subst(nh, expr, params, def_terms, substit)
             }
             Quants::All => {
                 let var_name = expr.get_expr_quant().get_var_name().clone();
                 params.push(Term::new_var_by_param(var_name));
-                Self::exist_quant_create_subst(nh,expr.get_expr_quant_mut().get_expr_mut(), params)
+                Self::exist_quant_create_subst(nh,expr.get_expr_quant_mut().get_expr_mut(), params, def_terms)
             }
         }
     }
+
+    */
 
     fn exist_quant_create_subst_42(nh: &mut NameHolder<N, T>, expr: &mut Expr<N>, term_const: T, term_func: T) -> Substitution<N> {
         let mut params = vec![];
@@ -110,84 +122,6 @@ impl<N:Name, T:Hash + Eq + Clone> OkParse<N,T>{
             }
         }
     }
-
-    /* 
-    fn exist_quant_create_subst_3(expr: &mut Expr<N>) -> Vec<N> {
-        let mut params = vec![];
-        let mut back: Expr<N>;
-        let mut cur = &mut *expr;
-        loop {
-            if !cur.is_quant() { return params }
-            let quant = cur.get_expr_quant().get_quant();
-            match quant {
-                Quants::Exist => {
-                    let temp = cur.get_expr_quant_mut().get_expr_mut().clone();
-                    *cur = temp;
-                    // *cur = q;
-                    // here create substitute : TODO
-                    //self.exist_quant_create_subst(expr, params)
-                }
-                Quants::All => {
-                    let var_name = cur.get_expr_quant().get_var_name().clone();
-                    params.push(var_name);
-                    let temp = cur.get_expr_quant_mut().get_expr().clone(); 
-                    back = temp;
-                    cur = &mut back;
-                }
-            }
-        }
-    }
-    */
-
-    /* 
-    fn exist_quant_create_subst_2(mut expr: RefCell<Expr<N>>) -> Vec<N> {
-        let mut params = vec![];
-        loop {
-            if !expr.borrow().is_quant() { return params }
-            let quant = expr.borrow().get_expr_quant().get_quant();
-            match quant {
-                Quants::Exist => {
-                    let q = expr.borrow().get_expr_quant().get_expr().clone();
-                    *expr.borrow_mut() = q;
-                    // here create substitute : TODO
-                    //self.exist_quant_create_subst(expr, params)
-                }
-                Quants::All => {
-                    let var_name = expr.borrow().get_expr_quant().get_var_name().clone();
-                    params.push(var_name);
-                    let x = expr.borrow_mut().get_expr_quant_mut().get_expr_mut().clone();
-                    expr = RefCell::new(x);
-                }
-            }
-        }
-    }
-
-    fn exist_quant_create_subst_3(expr: &mut Expr<N>) -> Vec<N> {
-        let mut params = vec![];
-        let mut back: RefMut<ExprQuant<N>>;
-        let mut cur = &mut *expr;
-        loop {
-            if !cur.is_quant() { return params }
-            let quant = expr.get_expr_quant().get_quant();
-            match quant {
-                Quants::Exist => {
-                    *cur = cur.get_expr_quant_mut().get_expr_mut().clone();
-                    // *cur = q;
-                    // here create substitute : TODO
-                    //self.exist_quant_create_subst(expr, params)
-                }
-                Quants::All => {
-                    let var_name = cur.get_expr_quant().get_var_name().clone();
-                    params.push(var_name);
-                    back = cur.get_expr_quant_mut(); 
-                    cur = back.get_expr_mut();
-                }
-            }
-        }
-    }
-
-    */
-
 }
 
 impl<N:Name, T: Hash + Eq + Display> OkParse<N, T>{
