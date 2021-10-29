@@ -110,8 +110,8 @@ pub fn parse<N:Name+std::fmt::Debug, T: PpeTesteable + Hash + Eq + std::fmt::Deb
     let mut name_holder = NameHolder::<N, T>::new();
     let mut tokens = Tokens::<_, _, 1>::new(tokens);
     let expr = _parse(parser_rs, &mut tokens, ParserParam::new(& mut name_holder));
-    println!("free vars: {:?}", name_holder.get_free_vars());
-    println!("init of renaming: {:?}", name_holder.get_init_of_renaming());
+    //println!("free vars: {:?}", name_holder.get_free_vars());
+    //println!("init of renaming: {:?}", name_holder.get_init_of_renaming());
     match expr {
         ParserRet::Expr(expr) => Ok(OkParse::new(expr, name_holder)),
         ParserRet::Bad(err) => Err(err),

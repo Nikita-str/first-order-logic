@@ -71,7 +71,6 @@ impl<N:Name> Expr<N>{
         Expr::Predicate(Rc::new(PredicateExpr::new(name, params)))
     }
 
-
     
     pub fn get_expr_predicate(&self) -> &PredicateExpr<N>{
         match self {

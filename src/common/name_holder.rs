@@ -185,6 +185,8 @@ impl<N: Name, T: Hash + Eq> NameHolder<N, T>{
 
     fn add_free_var(&mut self, init_name: N, var_name: N){ self.free_var.insert(init_name, var_name); }
     pub fn is_free_var(&self, var_name: &N) -> bool { self.free_var.contains_key(var_name) }
+    pub fn clear_free_vars(&mut self){ self.free_var.clear() }
+    pub fn exist_free_vars(&self) -> bool { self.free_var.len() > 0 }
 
     pub fn get_free_vars(&self) -> &HashMap<N, N> { &self.free_var }
     pub fn get_init_of_renaming(&self) -> &HashMap<N, (usize, N)> { &self.rename_to_init }

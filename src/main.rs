@@ -16,10 +16,21 @@ fn main(){
     }
     let ps = ParseStr::new(input_str.trim_end()); 
     let expr = parse::parse::<StdName, _, _>(&ruleset, &mut ps.into_iter());
+    println!();
     match expr {
         Err(_) => println!("invalid input"),
         Ok(ok) => {
-            println!("expr: {}", ok)
+            println!("expr: {}", ok);
+            let _ok = if ok.get_name_holder().exist_free_vars()  {
+                print!("here exist free vars: ");
+                ok.display_free_vars();
+                let ok = ok.expr_close();
+                println!("so after closing the formula it will look like: ");
+                println!("expr: {}", ok);
+                ok
+            } else {
+                ok
+            };
         }
     }
 }

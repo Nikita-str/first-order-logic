@@ -17,9 +17,18 @@ impl<N:Name, T: Hash + Eq> OkParse<N, T>{
 
     /// close the logic formula
     /// 
-    /// it means that any free vars will be limited with 
-    pub fn expr_close(&mut self){
-       // self.name_holder.get_free_vars()
+    /// it means that any free vars will be limited with ∀ quantor before whole formula
+    /// 
+    /// for example: `R(x) -> ∃y P(y)` will transformed into `∀x (R(x) -> ∃y P(y))` 
+    pub fn expr_close(self) -> Self{
+        let (mut expr, mut name_holder) = (self.expr, self.name_holder);
+
+       for var_name in name_holder.get_free_vars().values(){
+            expr = expr.apply_quant(Quants::All, var_name.clone());
+        }
+        name_holder.clear_free_vars();
+        
+        Self{ expr, name_holder }
     }
 }
 
@@ -68,8 +77,10 @@ T: Hash + Eq + Display,
                     Term::Func(_) => { 
                         let func = term.get_func();
                         wr_name(f, func.get_name())?;
+                        write!(f, "(")?;
                         let f_terms =  func.get_params();
                         (wr_terms.cl)(&wr_terms, f, f_terms)?;
+                        write!(f, ")")?;
                     }
                 };
                 first = false;
