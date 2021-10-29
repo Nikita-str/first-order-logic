@@ -454,11 +454,10 @@ fn _parse<N:Name+std::fmt::Debug, T: PpeTesteable + Eq + Hash + Clone + std::fmt
             AllSymbs::Quant(qua) => {
                     let expr = _parse(parser_rs, tokens, pp.new_after_quant(qua)).if_name_then_pret(
                         |x|{
-                            let term_type = x.name_type();
                             let r = _parse(parser_rs, tokens, pp.next(token_type)).if_expr(
                                 |y|y.apply_quant(qua, x.clone())
                             );
-                            pp.name_holder.unban_name(term_type, &x);
+                            pp.name_holder.remove_last_var_restr(&x);
                             r
                         }
                     );
@@ -476,15 +475,9 @@ fn _parse<N:Name+std::fmt::Debug, T: PpeTesteable + Eq + Hash + Clone + std::fmt
 
             AllSymbs::Term(TermType::Var) if matches!(pp.prev_token_type, Some(AllSymbs::Quant(_))) => {
                 let term_type = TermType::Var; 
-                let obj_name = pp.name_holder.get_last_existing_name(term_type, &token).and_then(|x|Some(x.clone()));
-                if obj_name.is_some() && pp.name_holder.is_name_banned(term_type, &obj_name.unwrap()) {
-                    //println!("name already use other quantor!");
-                    ParserRet::new_bad(ParseError::MoreThanOneQuantLimitation)
-                } else {
-                    let obj_name = pp.name_holder.get_name_uncond_new(term_type, token);
-                    pp.name_holder.ban_name(term_type, obj_name.clone());
-                    ParserRet::new_name(obj_name)
-                }
+                let obj_name = pp.name_holder.get_name_uncond_new(term_type, token);
+                pp.name_holder.restr_var_name(obj_name.clone());
+                ParserRet::new_name(obj_name)
             }
             AllSymbs::Term(TermType::Var) => {
                 let term_type = TermType::Var; 
@@ -495,7 +488,7 @@ fn _parse<N:Name+std::fmt::Debug, T: PpeTesteable + Eq + Hash + Clone + std::fmt
                 }
                 let obj_name = pp.name_holder.get_last_existing_name(term_type, &token).unwrap();
                 let obj_name = 
-                    if !pp.name_holder.is_name_banned(term_type, obj_name) {
+                    if !pp.name_holder.is_var_restr_by_quant(obj_name) {
                         // this var is free var! 
                         pp.name_holder.get_free_var(token)
                     } else {
