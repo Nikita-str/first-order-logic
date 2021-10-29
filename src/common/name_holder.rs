@@ -1,4 +1,4 @@
-use std::{collections::HashMap, hash::Hash};
+use std::{collections::{HashMap, HashSet}, hash::Hash};
 use crate::logic::{term_type::TermType, terms::{Term}};
 
 use super::name::{Name};
@@ -26,6 +26,9 @@ pub struct NameHolder<N: Name, T: Hash + Eq>{
     rename_to_init: HashMap<N, (usize, N)>,
 
     free_var: HashMap<N, N>, // initial name to free var
+
+    /// warnings for twice restricted vars
+    warning_vars: HashSet<N>,
 }
 
 impl<N: Name, T: Hash + Eq> NameHolder<N, T>{
@@ -58,6 +61,7 @@ impl<N: Name, T: Hash + Eq> NameHolder<N, T>{
             rename_to_init: HashMap::new(),
             renaming: HashMap::new(),
             free_var: HashMap::new(),
+            warning_vars: HashSet::new(),
         }
     }
 }
@@ -259,4 +263,8 @@ impl<N: Name, T: Hash + Eq> NameHolder<N, T>{
         let name = if let Some(name) = self.rename_to_init.get(name) { sh = name.0; &name.1 } else { name };
         (sh, self.name_to_token.get(name).unwrap())
     }
+
+    pub fn add_waring_var(&mut self, name: &N) { self.warning_vars.insert(name.clone()); }
+    pub fn get_waring_vars(&self) -> &HashSet<N>  { &self.warning_vars }
+    pub fn clear_waring_vars(&mut self) { self.warning_vars.clear(); }
 }

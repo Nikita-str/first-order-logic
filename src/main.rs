@@ -22,6 +22,14 @@ fn main(){
         Err(_) => println!("invalid input"),
         Ok(ok) => {
             println!("expr:  {}", ok);
+            let warns = ok.get_name_holder().get_waring_vars();
+            if warns.len() != 0 {
+                println!(""); 
+                println!("WARNING"); 
+                println!("initial name of the following vars was restricted more than one quantor in the same time: ");
+                ok.display_warning_vars();
+                println!(""); 
+            }
             let ok = if ok.get_name_holder().exist_free_vars()  {
                 print!("here exist free vars: ");
                 ok.display_free_vars();

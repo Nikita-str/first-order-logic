@@ -476,6 +476,10 @@ fn _parse<N:Name+std::fmt::Debug, T: PpeTesteable + Eq + Hash + Clone + std::fmt
             AllSymbs::Term(TermType::Var) if matches!(pp.prev_token_type, Some(AllSymbs::Quant(_))) => {
                 let term_type = TermType::Var; 
                 let obj_name = pp.name_holder.get_name_uncond_new(term_type, token);
+                if pp.name_holder.is_var_restr_by_quant(&obj_name) {
+                    // var already restr ==> WARNING
+                    pp.name_holder.add_waring_var(&obj_name)
+                }
                 pp.name_holder.restr_var_name(obj_name.clone());
                 ParserRet::new_name(obj_name)
             }

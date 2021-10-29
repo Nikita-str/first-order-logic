@@ -37,17 +37,22 @@ impl<N:Name, T: Hash + Eq> OkParse<N, T>{
 }
 
 impl<N:Name, T: Hash + Eq + Display> OkParse<N, T>{
-    pub fn display_free_vars(&self){
+    fn display_vars_helper<'i, I>(&self, iter: I)
+    where I: IntoIterator<Item = &'i N>, N: 'i
+    {
         print!("{{ ");
         let mut first = true;
-        for var in self.name_holder.get_free_vars().values(){
+        for var in iter.into_iter(){
             if !first { print!(", "); }
             let (sh, token) = self.name_holder.token_by_name_unchecked(var);
             if sh == 0 { print!("{}", token) } else { print!("{}_{}", token, sh) };
             first = false;
         }
-        println!(" }}");
+        println!(" }}");        
     }
+
+    pub fn display_free_vars(&self) { self.display_vars_helper(self.name_holder.get_free_vars().values()); }
+    pub fn display_warning_vars(&self) { self.display_vars_helper(self.name_holder.get_waring_vars()); }
 }
 
 impl<N, T> Display for OkParse<N, T>
