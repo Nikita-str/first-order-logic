@@ -30,6 +30,10 @@ impl<N:Name, T: Hash + Eq> OkParse<N, T>{
         
         Self{ expr, name_holder }
     }
+
+    pub fn apply_expr_action<F>(self, f: F) -> Self
+    where F: FnOnce(Expr<N>) -> Expr<N>
+    { Self { expr: f(self.expr), name_holder: self.name_holder } }
 }
 
 impl<N:Name, T: Hash + Eq + Display> OkParse<N, T>{
@@ -109,7 +113,11 @@ T: Hash + Eq + Display,
             match uop.get_op() { 
                 UnaryOperations::Not => write!(f, "¬")?,
             };
-            display_help_func(uop.get_expr(), nh, f)
+            let need_br  = uop.get_expr().is_binary_op();
+            if need_br { write!(f, "[")?; }
+            display_help_func(uop.get_expr(), nh, f)?;
+            if need_br { write!(f, "]")?; }
+            Ok(())
         }
         Expr::BinaryOp(_) => {
             let bop = expr.get_expr_binary();

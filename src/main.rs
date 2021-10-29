@@ -2,6 +2,7 @@ use std::io;
 use first_order_logic::common::name::StdName;
 use first_order_logic::common::parse_str::ParseStr;
 use first_order_logic::common::parse;
+use first_order_logic::logic::operations::UnaryOperations;
 
 
 fn main(){
@@ -21,7 +22,7 @@ fn main(){
         Err(_) => println!("invalid input"),
         Ok(ok) => {
             println!("expr: {}", ok);
-            let _ok = if ok.get_name_holder().exist_free_vars()  {
+            let ok = if ok.get_name_holder().exist_free_vars()  {
                 print!("here exist free vars: ");
                 ok.display_free_vars();
                 let ok = ok.expr_close();
@@ -29,8 +30,12 @@ fn main(){
                 println!("expr: {}", ok);
                 ok
             } else {
+                println!("here no free vars, it fine!");
                 ok
             };
+            println!("now add logical-not before formula: ");
+            let ok = ok.apply_expr_action(|expr|expr.apply_unary_op(UnaryOperations::Not));
+            println!("expr: {}", ok);
         }
     }
 }
