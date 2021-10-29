@@ -58,6 +58,7 @@ pub enum Expr<N: Name>{
 impl<N:Name> Expr<N>{
     pub fn is_empty(&self) -> bool { if let Expr::Empty = self { true } else { false }  }
     pub fn is_binary_op(&self) -> bool { if let Expr::BinaryOp(_) = self { true } else { false }  }
+    pub fn is_predicate(&self) -> bool { if let Expr::Predicate(_) = self { true } else { false }  }
 
     pub fn apply_unary_op(self, op: UnaryOperations) -> Self {
         Expr::UnaryOp(Rc::new(RefCell::new(UnaryOpExpr::new(op, self)))) 
@@ -134,6 +135,58 @@ impl<N:Name> Expr<N>{
 
             Expr::Predicate(_) | Expr::Empty => {}
         };
+    }
+
+    pub fn logical_not_moving(&mut self){ self._logical_not_moving(false) }
+    fn _logical_not_moving(&mut self, need_not: bool){
+        if self.is_predicate() {
+            if need_not { 
+                let pred = self.clone();
+                *self = pred.apply_unary_op(UnaryOperations::Not); 
+            }
+            return
+        }
+
+        match self {
+            Expr::BinaryOp(bop) => {
+                let bin_op = bop.borrow_mut().op;
+                match bin_op {
+                    BinaryOperations::Impl => {
+                        // not(A impl B) = not (not A or B) = (A and not B)
+                        bop.borrow_mut().left_formula._logical_not_moving(!need_not);
+                        bop.borrow_mut().right_formula._logical_not_moving(need_not);
+                        bop.borrow_mut().op = 
+                            if need_not { BinaryOperations::And }
+                            else { BinaryOperations::Or };
+                    }
+                    _ => {
+                        bop.borrow_mut().left_formula._logical_not_moving(need_not);
+                        bop.borrow_mut().right_formula._logical_not_moving(need_not);
+                        let op = bop.borrow_mut().op;
+                        if need_not { bop.borrow_mut().op = op.after_logical_not(); }
+                    }
+
+                }
+            }
+            Expr::UnaryOp(uop) => {
+                let un_op =  uop.borrow_mut().op;
+                match un_op {
+                    UnaryOperations::Not => {
+                        if !need_not && uop.borrow_mut().formula.is_predicate() { return }
+                        let old_expr = uop.borrow_mut().formula.clone();
+                        *self =  old_expr;
+                        self._logical_not_moving(!need_not);
+                    }
+                }
+            }
+            Expr::Quant(q) => {
+                let old_quant = q.borrow_mut().quant;
+                if need_not { q.borrow_mut().quant = old_quant.not(); }
+                q.borrow_mut().expr._logical_not_moving(need_not)
+            }
+            Expr::Predicate(_) => panic!("it must process outside match expr!"),
+            Expr::Empty => panic!("not(empty) : empty may mean false so this need to be true, may not mean"),
+        }
     }
 }
 

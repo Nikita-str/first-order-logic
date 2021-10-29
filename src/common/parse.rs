@@ -225,6 +225,7 @@ impl<'a, N:Name, T:Hash + Eq> ParserParam<'a, N, T>{
     pub fn disallow_save(&mut self, value: AllSymbs) { self.allow_back_save.remove(&value); }
 }
 
+#[derive(Debug)]
 pub enum ParseError{
     UnexpectedToken,
     UnexpectedEnd,

@@ -3,6 +3,7 @@
 mod parse_str_test{
     use crate::common::{name::StdName, parse, ok_parse::OkParse};
     use crate::common::parse_str::ParseStr;
+    use crate::logic::expr::Expr;
 
     fn test_help(ps: ParseStr, expects: Vec<&str>){
         let mut iter = ps.into_iter(); 
@@ -159,18 +160,34 @@ mod parse_str_test{
     }
 
     #[test]
-    fn parse_test_2(){
+    fn move_not_test(){
         let ruleset = ParseStr::create_std_ruleset();
 
-        let ps = ParseStr::new("exist x Q(x) & (P(x) -> exist x R(x, x))"); // ERROR: must add for_all for second x ! => 3 vars
-        let expr = parse::parse::<StdName, _, _>(&ruleset, &mut ps.into_iter());
-
+        let ps = ParseStr::new("! ! ! ! ! ! P(a, x, f(b, c))"); 
+        let ok = parse::parse::<StdName, _, _>(&ruleset, &mut ps.into_iter());
+        let mut ok = match ok { Ok(ok) => ok, Err(_) => panic!("not parsed") };
+        ok.get_mut_expr().logical_not_moving();
+        let expr = ok.get_expr();
         match expr {
-            Err(_) => println!("NONE :("),
-            Ok(ok) => {
-                println!("EXPR : {:?}", ok.get_expr())
-            }
+            Expr::Predicate(_) => {}
+            _ => panic!(" not must be just dissapear"),
         }
+
+        let ps = ParseStr::new("! ! ! ! ! P(a, x, f(b, c))"); 
+        let ok = parse::parse::<StdName, _, _>(&ruleset, &mut ps.into_iter());
+        let mut ok = match ok { Ok(ok) => ok, Err(_) => panic!("not parsed") };
+        ok.get_mut_expr().logical_not_moving();
+        let expr = ok.get_expr();
+        match expr {
+            Expr::UnaryOp(uop) => {
+                match uop.borrow().get_expr() {
+                    Expr::Predicate(_) => {}
+                    _ => panic!("after not must stay predicate")
+                }
+            }
+            _ => panic!("must stay only one not and one predicate"),
+        }
+
     }
     
     #[test]
@@ -196,4 +213,22 @@ mod parse_str_test{
             }
         }
     }
+
+    #[test]
+    fn parse_test_4(){
+        let ruleset = ParseStr::create_std_ruleset();
+        //let ps = ParseStr::new("¬ (P(x, c) & ! R(f(a, b, c)))");
+        let ps = ParseStr::new("¬ ∃x( (P(x) & (∀x_2 P(x_2) → ∃y R(x, y))) → ∃y R(x, y) )");
+        let expr = parse::parse::<StdName, _, _>(&ruleset, &mut ps.into_iter());
+        match expr {
+            Err(err) => println!("NONE :(  [err={:?}]", err),
+            Ok(mut ok) => {
+                println!("EXPR : {}", ok);
+                println!("move not:");
+                ok.get_mut_expr().logical_not_moving();
+                println!("EXPR : {}", ok);
+            }
+        }
+    }
+
 }
