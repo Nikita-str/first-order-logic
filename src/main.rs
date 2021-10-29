@@ -34,14 +34,18 @@ fn main(){
                 ok
             };
             println!("now add logical-not before formula: ");
-            let ok = ok.apply_expr_action(|expr|expr.apply_unary_op(UnaryOperations::Not));
+            let mut ok = ok.apply_expr_action(|expr|expr.apply_unary_op(UnaryOperations::Not));
+            println!("expr: {}", ok);
+            println!("now transform [A → B] into [¬A ∨ B] : ");
+            ok.get_mut_expr().impl_transformation();
             println!("expr: {}", ok);
         }
     }
 }
 
+
 /*
-use first_order_logic::{common::name::{StdName}, logic::{term_type::TermType, predicate_expr::PredicateExpr, terms::{ConstTerm, FuncTerm, Term, VarTerm}}};
+use first_order_logic::{ logic::{term_type::TermType, predicate_expr::PredicateExpr, terms::{ConstTerm, FuncTerm, Term, VarTerm}}};
 
 #[allow(non_snake_case)]
 fn main() {
@@ -113,4 +117,4 @@ fn main() {
         println!("N0 :(")
     }
 }
-*/
+// */
