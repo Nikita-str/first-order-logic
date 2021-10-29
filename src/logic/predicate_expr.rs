@@ -13,6 +13,7 @@ impl<N: Name> PredicateExpr<N>{
 
     pub fn get_name(&self) -> &N { &self.name }
     pub fn get_params(&self) -> &Vec<Term<N>> { &self.params }
+    pub fn get_params_mut(&mut self) -> &mut Vec<Term<N>> { &mut self.params }
 }
 
 impl<N: Name + std::fmt::Display> PredicateExpr<N>{

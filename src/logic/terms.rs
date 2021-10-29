@@ -89,6 +89,13 @@ impl<N: Name> Term<N>{
     }
 }
 
+impl<N: Name> Term<N>{
+    pub fn gen_new_n_const(name: N, params: &Vec<Term<N>>) -> Term<N>{
+        if params.is_empty() { Self::new_const_by_param(name) }
+        else { Self::new_func_by_param(name, params.clone()) }
+    }
+}
+
 impl<N: Name> Clone for Term<N>{
     fn clone(&self) -> Self {
         match self {

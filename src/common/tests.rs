@@ -259,4 +259,28 @@ mod parse_str_test{
         }
     }
 
+    #[test]
+    fn parse_test_6(){
+        let ruleset = ParseStr::create_std_ruleset();
+        let ps = ParseStr::new("exist x any x_any exist y exist z any y_any exist w (P(f(a, x), y_any, y, g(z, x_any, w), x, x_any, y, w) & (R(x, y_any) | R(a, z)))");
+        let expr = parse::parse::<StdName, _, _>(&ruleset, &mut ps.into_iter());
+        match expr {
+            Err(err) => println!("NONE :(  [err={:?}]", err),
+            Ok(ok) => {
+                println!("EXPR : {}", ok);
+                println!("to cnf:");
+                let mut ok = ok.expr_close();
+                ok.get_mut_expr().quant_outing();
+                ok.get_mut_expr().to_cnf();
+                println!("EXPR : {}", ok);
+
+                println!("");
+                println!("");
+                println!("TEST:");
+                println!("vec vars: {:?}", ok.exist_quant_transform());
+                println!("EXPR : {}", ok);
+
+            }
+        }
+    }
 }

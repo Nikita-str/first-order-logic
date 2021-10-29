@@ -1,5 +1,4 @@
-use crate::logic::{all_symbs::AllSymbs, operations::{BinaryOperations, Operations, UnaryOperations}, 
-                    quants::Quants, syntax_symbs::SyntaxSymbs, term_type::TermType};
+use crate::logic::{all_symbs::AllSymbs, default_term::DefaultTerm, operations::{BinaryOperations, Operations, UnaryOperations}, quants::Quants, syntax_symbs::SyntaxSymbs, term_type::TermType};
 
 use super::parse::{ExactTesteable, ParseRuleType, ParserRuleset, PostfixTesteable, PrefixTesteable};
 
@@ -123,6 +122,19 @@ impl<'a> PostfixTesteable for ParseStr<'a>{
 
 impl<'a> ExactTesteable for ParseStr<'a>{
     fn test_exact(&self, other: &Self) -> bool { self.s.test_exact(other.s) }
+}
+
+const DEFAULT_CONST: &'static str = "c";
+const DEFAULT_FUNC: &'static str = "f";
+
+impl<'a> DefaultTerm for ParseStr<'a>{
+    fn default_term(term_type: TermType) -> Self {
+        match term_type {
+            TermType::Const => Self{ s: DEFAULT_CONST },
+            TermType::Func => Self { s: DEFAULT_FUNC },
+            _ => panic!("we can it realise but for what?")
+        }
+    }
 }
 
 

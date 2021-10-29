@@ -4,6 +4,7 @@ pub mod operations;
 pub mod expr;
 pub mod predicate_expr;
 pub mod term_type;
+pub mod default_term;
 pub mod terms;
 pub mod substit;
 

@@ -1,4 +1,4 @@
-use std::{cell::{Ref, RefCell}, collections::HashMap, rc::Rc};
+use std::{cell::{Ref, RefCell, RefMut}, collections::HashMap, rc::Rc};
 use crate::{common::name::Name};
 use super::{all_symbs::AllSymbs, operations::{BinaryOperations, Operations, UnaryOperations}, predicate_expr::PredicateExpr, quants::Quants, term_type::TermType, terms::Term};
 
@@ -13,6 +13,7 @@ impl<N:Name> UnaryOpExpr<N>{
     
     pub fn get_op(&self) -> UnaryOperations { self.op }
     pub fn get_expr(&self) -> &Expr<N> { &self.formula }
+    pub fn get_expr_mut(&mut self) -> &mut Expr<N> { &mut self.formula }
 }
 
 #[derive(Debug)]
@@ -27,16 +28,16 @@ impl<N:Name> BinaryOpExpr<N>{
 
     pub fn get_op(&self) -> BinaryOperations { self.op }
     pub fn get_lexpr(&self) -> &Expr<N> { &self.left_formula }
-    pub fn get_lexpr_mut(&mut self) -> &Expr<N> { &mut self.left_formula }
+    pub fn get_lexpr_mut(&mut self) -> &mut Expr<N> { &mut self.left_formula }
     pub fn get_rexpr(&self) -> &Expr<N> { &self.right_formula }
-    pub fn get_rexpr_mut(&mut self) -> &Expr<N> { &mut self.right_formula }
+    pub fn get_rexpr_mut(&mut self) -> &mut Expr<N> { &mut self.right_formula }
 }
 
 #[derive(Debug)]
 pub struct ExprQuant<N: Name>{
     quant: Quants,
     var_name: N,
-    expr: Expr<N>,
+    pub expr: Expr<N>,
 }
 impl<N:Name> ExprQuant<N>{
     pub fn new(q: Quants, var_name: N, expr: Expr<N>) -> Self { Self { quant: q, var_name, expr } }
@@ -44,6 +45,7 @@ impl<N:Name> ExprQuant<N>{
     pub fn get_quant(&self) -> Quants { self.quant }
     pub fn get_var_name(&self) -> &N { &self.var_name }
     pub fn get_expr(&self) -> &Expr<N> { &self.expr }
+    pub fn get_expr_mut(&mut self) -> &mut Expr<N> { &mut self.expr }
 }
 
 #[derive(Debug)]
@@ -83,9 +85,16 @@ impl<N:Name> Expr<N>{
         }
     }
 
-    pub fn get_expr_quant(&self) -> Ref<'_, ExprQuant<N>>{
+    pub fn get_expr_quant(&self) -> Ref<ExprQuant<N>>{
         match self {
             Expr::Quant(q) => Rc::as_ref(q).borrow(),
+            _ => panic!("not quant expr")
+        }
+    }
+
+    pub fn get_expr_quant_mut(&self) -> RefMut<ExprQuant<N>>{
+        match self {
+            Expr::Quant(q) => Rc::as_ref(q).borrow_mut(),
             _ => panic!("not quant expr")
         }
     }

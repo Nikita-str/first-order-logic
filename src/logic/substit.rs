@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fmt};
 
 use crate::common::name::Name;
-use super::terms::{Term, VarTerm};
+use super::{expr::Expr, terms::{Term, VarTerm}};
 
 pub struct Substitution<N: Name>{
     substs: HashMap<VarTerm<N>, Term<N>>
@@ -29,18 +29,26 @@ impl<N: Name> SubstitutionApply<Term<N>> for Substitution<N>{
     }
 }
 
-/*
-impl<'s, N: Name> Mul<&'s Substitution<N>> for Term<N>{
-    type Output = Self;
-    fn mul(self, rhs: &'s Substitution<N>) -> Self::Output { rhs.apply(&mut self); self }
-}  
-*/
-
 impl<N: Name> SubstitutionApply<Substitution<N>> for Substitution<N>{
     fn apply(&self, other: &mut Substitution<N>) {
         for subst in &mut other.substs{ self.apply(subst.1) }
         for (key, term) in &self.substs {
             if !other.substs.contains_key(key) { other.substs.insert(key.clone(), term.clone()); }
+        }
+    }
+}
+
+impl<N: Name> SubstitutionApply<Expr<N>> for Substitution<N>{
+    fn apply(&self, expr: &mut Expr<N>) {
+        match expr {
+            Expr::Empty => return,
+            Expr::Predicate(p) => p.borrow_mut().get_params_mut().into_iter().for_each(|term|self.apply(term)),
+            Expr::Quant(q) => self.apply(q.borrow_mut().get_expr_mut()),
+            Expr::UnaryOp(uop) => self.apply(uop.borrow_mut().get_expr_mut()),
+            Expr::BinaryOp(bop) => {
+                self.apply(bop.borrow_mut().get_lexpr_mut());
+                self.apply(bop.borrow_mut().get_rexpr_mut())
+            }
         }
     }
 }

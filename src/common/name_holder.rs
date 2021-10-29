@@ -17,8 +17,6 @@ pub struct NameHolder<N: Name, T: Hash + Eq>{
     names: HashMap<TermType, HashMap<T, N>>,
     last_names: HashMap<TermType, N>,
 
-    //banned_names: HashMap<TermType, HashSet<N>>,
-
     /// key: initial name; vec<N> - stack of quantor restriction
     last_restriction: HashMap<N, Vec<N>>,
 
@@ -35,12 +33,10 @@ impl<N: Name, T: Hash + Eq> NameHolder<N, T>{
     pub fn new() -> Self{
         let mut names = HashMap::new();
         let mut last_names = HashMap::new();
-        //let mut banned_names = HashMap::new();
 
         let mut insert = |t_type|{
             last_names.insert(t_type, N::first_name(t_type));
             names.insert(t_type, HashMap::new());
-            //banned_names.insert(t_type, HashSet::new());
         };
 
         insert(TermType::Var);
@@ -56,7 +52,6 @@ impl<N: Name, T: Hash + Eq> NameHolder<N, T>{
             name_to_token: HashMap::new(),
             names, 
             last_names,
-            //banned_names, 
             last_restriction: HashMap::new(),
             rename_to_init: HashMap::new(),
             renaming: HashMap::new(),
@@ -196,10 +191,6 @@ impl<N: Name, T: Hash + Eq> NameHolder<N, T>{
         }
     }
 
-    //pub fn is_name_banned(&self, term_type: TermType, name: &N) -> bool { self.banned_names.get(&term_type).unwrap().contains(name) }
-    //pub fn ban_name(&mut self, term_type: TermType, name: N) -> bool { self.banned_names.get_mut(&term_type).unwrap().insert(name) }
-    //pub fn unban_name(&mut self, term_type: TermType, name: &N) -> bool { self.banned_names.get_mut(&term_type).unwrap().remove(name) }
-
 
     pub fn is_var_restr_by_quant(&self, name: &N) -> bool {
         if let Some(init) = self.get_var_initial_name(name){
@@ -268,3 +259,4 @@ impl<N: Name, T: Hash + Eq> NameHolder<N, T>{
     pub fn get_waring_vars(&self) -> &HashSet<N>  { &self.warning_vars }
     pub fn clear_waring_vars(&mut self) { self.warning_vars.clear(); }
 }
+
