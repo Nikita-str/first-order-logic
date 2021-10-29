@@ -39,6 +39,12 @@ fn main(){
             println!("now transform [A → B] into [¬A ∨ B] : ");
             ok.get_mut_expr().impl_transformation();
             println!("expr: {}", ok);
+            println!("move in logical-not: ");
+            ok.get_mut_expr().logical_not_moving();
+            println!("expr: {}", ok);
+            println!("move out quants: ");
+            ok.get_mut_expr().quant_outing();
+            println!("expr: {}", ok);
         }
     }
 }

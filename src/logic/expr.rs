@@ -1,4 +1,4 @@
-use std::{cell::{Ref, RefCell}, rc::Rc};
+use std::{cell::{Ref, RefCell}, collections::HashMap, rc::Rc};
 use crate::{common::name::Name};
 use super::{all_symbs::AllSymbs, operations::{BinaryOperations, Operations, UnaryOperations}, predicate_expr::PredicateExpr, quants::Quants, term_type::TermType, terms::Term};
 
@@ -59,6 +59,7 @@ impl<N:Name> Expr<N>{
     pub fn is_empty(&self) -> bool { if let Expr::Empty = self { true } else { false }  }
     pub fn is_binary_op(&self) -> bool { if let Expr::BinaryOp(_) = self { true } else { false }  }
     pub fn is_predicate(&self) -> bool { if let Expr::Predicate(_) = self { true } else { false }  }
+    pub fn is_quant(&self) -> bool { if let Expr::Quant(_) = self { true } else { false }  }
 
     pub fn apply_unary_op(self, op: UnaryOperations) -> Self {
         Expr::UnaryOp(Rc::new(RefCell::new(UnaryOpExpr::new(op, self)))) 
@@ -190,6 +191,89 @@ impl<N:Name> Expr<N>{
     }
 }
 
+
+
+struct QuantOutingInfo<N>{ 
+    ///  contain pairs: ( `[lvl, quant]`, `Vec<N>` )  
+    /// 
+    /// where Vec<N> - names of limited vars by quantor `quant` on level `lvl` 
+    quants_by_lvl: HashMap<(usize, Quants), Vec<N>>,
+    max_quant_lvl: usize, 
+    empty_vec: Vec<N>,
+}
+
+impl<N> QuantOutingInfo<N>{
+    pub fn new() -> Self { Self { quants_by_lvl: HashMap::new(), max_quant_lvl: 0, empty_vec: vec![] } }
+
+    pub fn add_name(&mut self, lvl: usize, quant: Quants, value: N) {
+        if lvl > self.max_quant_lvl { panic!("wrong lvl of quant") }
+        if lvl == self.max_quant_lvl { self.max_quant_lvl = self.max_quant_lvl + 1; }
+        if let Some(vec) = self.quants_by_lvl.get_mut(&(lvl, quant)) {
+            vec.push(value)
+        } else {
+            let vec = vec![value];
+            self.quants_by_lvl.insert((lvl, quant), vec);
+        }
+    }
+
+    pub fn exist_lvl(&self, lvl: usize) -> bool { lvl < self.max_quant_lvl }
+
+    /// # panic
+    /// - if `!self.exist_lvl(lvl)`
+    pub fn get_values(&self, lvl: usize, quant: Quants) -> &Vec<N>{
+        if !self.exist_lvl(lvl) { panic!("wrong lvl") }
+        if let Some(vec) = self.quants_by_lvl.get(&(lvl, quant)) { vec }
+        else { &self.empty_vec } 
+    }
+
+    pub fn get_top_lvl(&self) -> usize { self.max_quant_lvl }
+}
+
+impl<N:Name> Expr<N>{
+    /// # restriction
+    /// you can do it only if all logical-not stay after quants (only after call `self.logical_not_moving`)
+    /// 
+    /// in other way it is not correct transformation !
+    pub fn quant_outing(&mut self) {
+        let mut qo_info = QuantOutingInfo::new();
+        self.pre_quant_outing(0, &mut qo_info);
+        self.post_quant_outing(qo_info);
+    }
+   
+    fn pre_quant_outing(&mut self, cur_quant_lvl:usize, qo_info: &mut QuantOutingInfo<N>){
+        match self {
+            Expr::BinaryOp(bop) => {
+                bop.borrow_mut().left_formula.pre_quant_outing(cur_quant_lvl, qo_info); // <--- NOT TAIL-REC 
+                bop.borrow_mut().right_formula.pre_quant_outing(cur_quant_lvl, qo_info)
+            }
+            Expr::UnaryOp(uop) => uop.borrow_mut().formula.pre_quant_outing(cur_quant_lvl, qo_info),
+            Expr::Quant(_) => {
+                let expr = self.get_expr_quant().expr.clone();
+                let quant = self.get_expr_quant().quant;
+                let name = self.get_expr_quant().var_name.clone();
+                qo_info.add_name(cur_quant_lvl, quant, name);
+                *self = expr;
+                self.pre_quant_outing(cur_quant_lvl + 1, qo_info)
+            }
+            Expr::Empty | Expr::Predicate(_) => {}
+        }
+    }
+
+    fn post_quant_outing(&mut self, qo_info: QuantOutingInfo<N>){
+        let mut lvl = qo_info.get_top_lvl();
+        while lvl > 0 {
+            // cause we start from end => firstly All quants, then Exist quants
+
+            lvl = lvl - 1;
+            for name_of_all_q in qo_info.get_values(lvl, Quants::All){
+                *self = self.clone().apply_quant(Quants::All, name_of_all_q.clone());
+            }
+            for name_of_exist_q in qo_info.get_values(lvl, Quants::Exist){
+                *self = self.clone().apply_quant(Quants::Exist, name_of_exist_q.clone());
+            }
+        }
+    }
+}
 
 impl<N: Name> Clone for Expr<N>{
     fn clone(&self) -> Self {

@@ -218,7 +218,8 @@ mod parse_str_test{
     fn parse_test_4(){
         let ruleset = ParseStr::create_std_ruleset();
         //let ps = ParseStr::new("¬ (P(x, c) & ! R(f(a, b, c)))");
-        let ps = ParseStr::new("¬ ∃x( (P(x) & (∀x_2 P(x_2) → ∃y R(x, y))) → ∃y R(x, y) )");
+        //let ps = ParseStr::new("¬ ∃x( (P(x) & (∀x_2 P(x_2) → ∃y R(x, y))) → ∃y R(x, y) )");
+        let ps = ParseStr::new("(exist x_1 any y_1 exist z_1 P(x_1,y_1, z_1)) & (any x_2 exist y_2 R(x_2, y_2) | exist x_3 any y_3 R(x_3, y_3))");
         let expr = parse::parse::<StdName, _, _>(&ruleset, &mut ps.into_iter());
         match expr {
             Err(err) => println!("NONE :(  [err={:?}]", err),
@@ -227,6 +228,9 @@ mod parse_str_test{
                 println!("move not:");
                 ok.get_mut_expr().logical_not_moving();
                 println!("EXPR : {}", ok);
+                println!("move out quants: ");
+                ok.get_mut_expr().quant_outing();
+                println!("expr: {}", ok);
             }
         }
     }
