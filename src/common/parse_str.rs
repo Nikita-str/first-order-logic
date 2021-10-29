@@ -61,8 +61,8 @@ impl<'a> ParseStr<'a>{
         add_exact_rules(AllSymbs::Op(Operations::Unary(UnaryOperations::Not)), vec!["!", "¬"]);
 
         add_exact_rules(AllSymbs::Op(Operations::Binary(BinaryOperations::Impl)), vec!["→", "->", "-->", "--->"]);
-        add_exact_rules(AllSymbs::Op(Operations::Binary(BinaryOperations::And)), vec!["∧", "&", "&&"]);
-        add_exact_rules(AllSymbs::Op(Operations::Binary(BinaryOperations::Or)), vec!["∨", "|", "||"]);
+        add_exact_rules(AllSymbs::Op(Operations::Binary(BinaryOperations::And)), vec!["∧", "&", "&&", "and"]);
+        add_exact_rules(AllSymbs::Op(Operations::Binary(BinaryOperations::Or)), vec!["∨", "|", "||", "or"]);
 
         ruleset
     }

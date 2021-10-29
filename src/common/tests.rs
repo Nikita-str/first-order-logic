@@ -234,5 +234,23 @@ mod parse_str_test{
             }
         }
     }
+    #[test]
+    fn parse_test_5(){
+        let ruleset = ParseStr::create_std_ruleset();
+
+        //let ps = ParseStr::new("(P(x_c, y_c) or (P(x_d, y_d) and P(x_g, y_g))) and (P(x_a, y_a) or P(x_b, y_b))");
+        //let ps = ParseStr::new("(P(x_c, y_c) or (P(x_d, y_d) and P(x_g, y_g))) or (P(x_a, y_a) or P(x_b, y_b))");
+        let ps = ParseStr::new("(P(x_a) & (P(x_e) ∨ P(x_b) ∨ P(x_c)))  and (P(x_n) & P(x_p) ∨ (P(x_f) & P(x_g)))");
+        let expr = parse::parse::<StdName, _, _>(&ruleset, &mut ps.into_iter());
+        match expr {
+            Err(err) => println!("NONE :(  [err={:?}]", err),
+            Ok(mut ok) => {
+                println!("EXPR : {}", ok);
+                println!("to cnf:");
+                ok.get_mut_expr().to_cnf();
+                println!("EXPR : {}", ok);
+            }
+        }
+    }
 
 }

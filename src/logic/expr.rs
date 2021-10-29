@@ -275,6 +275,89 @@ impl<N:Name> Expr<N>{
     }
 }
 
+impl<N:Name> Expr<N>{
+    /// # MAYBE ALGO-ERROR: maybe need real clone 
+    pub fn to_cnf(&mut self){
+        return match self {
+            Expr::BinaryOp(bop) => {
+                if bop.borrow_mut().left_formula.is_quant() { panic!("initial formula cant be guarantee transfor to knf") }
+                if bop.borrow_mut().right_formula.is_quant() { panic!("initial formula cant be guarantee transfor to knf") }
+                bop.borrow_mut().left_formula.to_cnf();
+                bop.borrow_mut().right_formula.to_cnf();
+                
+                const OR: BinaryOperations =  BinaryOperations::Or;
+                // it is not or-binary-op => not interesting 
+                if !bop.borrow().get_op().eq(&OR) { return }
+
+                const AND: BinaryOperations = BinaryOperations::And;
+                let right_is_and = {
+                    let e = &bop.borrow_mut().right_formula;
+                    if e.is_binary_op() { e.get_expr_binary().get_op().eq(&AND) } else { false }
+                };
+                let left_is_and = {
+                    let e = &bop.borrow_mut().left_formula;
+                    if e.is_binary_op() { e.get_expr_binary().get_op().eq(&AND) } else { false }
+                };
+                
+
+                // (*): [L, L]; [L, R]; [R, L]; [R; R]
+                // we can take clone by path (*) but i'm lazy to do this, 
+                //    so we look carefully and try to do no mistake 
+                type BOP<N> = Rc<RefCell<BinaryOpExpr<N>>>;
+                let get_ll = |bop:&BOP<_>|bop.borrow().get_lexpr().get_expr_binary().get_lexpr().clone(); 
+                let get_lr = |bop:&BOP<_>|bop.borrow().get_lexpr().get_expr_binary().get_rexpr().clone(); 
+                let get_rl = |bop:&BOP<_>|bop.borrow().get_rexpr().get_expr_binary().get_lexpr().clone(); 
+                let get_rr = |bop:&BOP<_>|bop.borrow().get_rexpr().get_expr_binary().get_rexpr().clone(); 
+
+                if left_is_and & right_is_and {
+                    // (X & Y) ∨ (Z & W)
+                    //  TO CNF:
+                    // (X ∨ Z) & (X ∨ W) & (Y ∨ Z) & (Y ∨ W)
+                    let x = get_ll(bop);
+                    let y = get_lr(bop);
+                    let z = get_rl(bop); 
+                    let w = get_rr(bop); 
+                    
+                    bop.borrow_mut().left_formula = 
+                        Self::apply_binary_op(
+                            AND, 
+                            Self::apply_binary_op(OR, x.clone(), z.clone()), 
+                            Self::apply_binary_op(OR, x, w.clone()), 
+                        );
+                    bop.borrow_mut().right_formula = 
+                        Self::apply_binary_op(
+                            AND, 
+                            Self::apply_binary_op(OR, y.clone(), z), 
+                            Self::apply_binary_op(OR, y, w), 
+                        ); 
+                } else if left_is_and {
+                    // (B & C) ∨ A : (A ∨ B) & (A ∨ C)
+                    let b = get_ll(bop); 
+                    let c = get_lr(bop);
+                    let a = bop.borrow().get_rexpr().clone();
+                    bop.borrow_mut().left_formula = Self::apply_binary_op(OR, a.clone(), b);
+                    bop.borrow_mut().right_formula = Self::apply_binary_op(OR, a, c);
+                } else if right_is_and {
+                    // A ∨ (B & C)  :  (A ∨ B) & (A ∨ C)
+                    let a = bop.borrow().get_lexpr().clone();
+                    let b = get_rl(bop); 
+                    let c = get_rr(bop);
+                    bop.borrow_mut().left_formula = Self::apply_binary_op(OR, a.clone(), b);
+                    bop.borrow_mut().right_formula = Self::apply_binary_op(OR, a, c);
+                }
+
+                if left_is_and || right_is_and {  bop.borrow_mut().op = AND; }
+            }
+            Expr::UnaryOp(uop) => {
+                if !uop.borrow_mut().formula.is_predicate() { panic!("initial formula cant be guarantee transfor to knf") }
+            }
+            Expr::Quant(q) => q.borrow_mut().expr.to_cnf(),
+            Expr::Predicate(_) | Expr::Empty => {}
+        }
+    }
+}
+
+
 impl<N: Name> Clone for Expr<N>{
     fn clone(&self) -> Self {
         match self {

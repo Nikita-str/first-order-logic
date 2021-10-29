@@ -21,13 +21,13 @@ fn main(){
     match expr {
         Err(_) => println!("invalid input"),
         Ok(ok) => {
-            println!("expr: {}", ok);
+            println!("expr:  {}", ok);
             let ok = if ok.get_name_holder().exist_free_vars()  {
                 print!("here exist free vars: ");
                 ok.display_free_vars();
                 let ok = ok.expr_close();
                 println!("so after closing the formula it will look like: ");
-                println!("expr: {}", ok);
+                println!("expr:  {}", ok);
                 ok
             } else {
                 println!("here no free vars, it fine!");
@@ -35,16 +35,19 @@ fn main(){
             };
             println!("now add logical-not before formula: ");
             let mut ok = ok.apply_expr_action(|expr|expr.apply_unary_op(UnaryOperations::Not));
-            println!("expr: {}", ok);
+            println!("expr:  {}", ok);
             println!("now transform [A → B] into [¬A ∨ B] : ");
             ok.get_mut_expr().impl_transformation();
-            println!("expr: {}", ok);
+            println!("expr:  {}", ok);
             println!("move in logical-not: ");
             ok.get_mut_expr().logical_not_moving();
-            println!("expr: {}", ok);
+            println!("expr:  {}", ok);
             println!("move out quants: ");
             ok.get_mut_expr().quant_outing();
-            println!("expr: {}", ok);
+            println!("expr:  {}", ok);
+            println!("transform to cnf: ");
+            ok.get_mut_expr().to_cnf();
+            println!("expr:  {}", ok);
         }
     }
 }
