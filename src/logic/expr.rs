@@ -113,6 +113,13 @@ impl<N:Name> Expr<N>{
         }
     }
 
+    pub fn get_expr_binary_mut(&self) -> RefMut<'_, BinaryOpExpr<N>>{
+        match self {
+            Expr::BinaryOp(bop) => Rc::as_ref(bop).borrow_mut(),
+            _ => panic!("not binary op expr")
+        }
+    }
+
     pub fn get_priority(&self) -> Option<usize> {
         match self {
             Expr::Empty => AllSymbs::Empty.get_priority(),

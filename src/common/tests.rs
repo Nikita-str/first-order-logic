@@ -284,4 +284,38 @@ mod parse_str_test{
             }
         }
     }
+
+    #[test]
+    fn parse_test_7(){
+        let ruleset = ParseStr::create_std_ruleset();
+        let ps = ParseStr::new("(P(a) & P(b)) | P(c)");
+        let expr = parse::parse::<StdName, _, _>(&ruleset, &mut ps.into_iter());
+        match expr {
+            Err(err) => println!("NONE :(  [err={:?}]", err),
+            Ok(mut ok) => {
+                println!("EXPR : {}", ok);
+                println!("to cnf:");
+                ok.get_mut_expr().to_cnf();
+                println!("EXPR : {}", ok);
+                
+                println!("now show bug (why cant just split it into system of logical clauses):");
+                let a_name = match ok.get_mut_expr().get_expr_binary_mut().get_lexpr_mut().get_expr_binary_mut().get_rexpr_mut() {
+                    Expr::Predicate(p) => { p.borrow_mut().params.get(0).unwrap().clone() }
+                    _ => panic!("it predicate, honestly")
+                };
+
+                match ok.get_mut_expr().get_expr_binary_mut().get_lexpr_mut().get_expr_binary_mut().get_lexpr_mut() {
+                    Expr::Predicate(p) => {
+                        let old_name = p.borrow_mut().params.get(0).unwrap().clone();
+                        assert_eq!(old_name.get_const().get_name().name, 3);
+                        p.borrow_mut().params[0] = a_name;
+                    }
+                    _ => panic!("it predicate, honestly")
+                }
+
+                println!("see on P(c), i change only one! :");
+                println!("EXPR : {}", ok);
+            }
+        }
+    }
 }
