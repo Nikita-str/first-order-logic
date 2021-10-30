@@ -275,7 +275,7 @@ impl<N:Name, T: Hash + Eq + std::fmt::Display> NameHolder<N, T>{
             if index == 0 {
                 if sh == 0 { print!("{}", token) } else { print!("{}_{}", token, sh) }
             } else {
-                print!("{}_{}_{}", token, sh, index)
+                if sh == 0 {  print!("{}___{}", token, index) } else { print!("{}_{}_{}", token, sh, index) } 
             }
             first = false;
         }

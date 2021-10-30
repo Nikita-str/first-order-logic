@@ -148,7 +148,7 @@ where N: Name, T: Hash + Eq + Display,
     if index == 0 {
         if sh == 0 { write!(f, "{}", token) } else { write!(f, "{}_{}", token, sh) }
     } else {
-        write!(f, "{}_{}_{}", token, sh, index)
+        if sh == 0 {  write!(f, "{}___{}", token, index) } else { write!(f, "{}_{}_{}", token, sh, index) } 
     }
 } 
 

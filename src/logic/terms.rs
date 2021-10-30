@@ -98,7 +98,7 @@ impl<N: Name> Term<N>{
 
     pub fn set_var_index(&mut self, index: usize) {
         match self {
-            Self::Const(c) => {},
+            Self::Const(_) => {},
             Self::Func(f) => f.borrow_mut().set_var_index(index),
             Self::Var(v) => v.borrow_mut().set_var_index(index),
         }
