@@ -61,7 +61,8 @@ pub enum ResolventResult{
     EmptyClauseNotDerivable,
 }
 
-impl<N:Name, T:Hash + Eq> ClauseSystem<N, T>{
+//TODO:DEL: std::fmt::Display
+impl<N:Name, T:Hash + Eq + std::fmt::Display> ClauseSystem<N, T>{
     fn get_new_var_index(&self) -> usize { self.system.len() + 1 }
 
     /// return line index (not index of var)
@@ -74,6 +75,10 @@ impl<N:Name, T:Hash + Eq> ClauseSystem<N, T>{
     /// always ended
     pub fn made_all_gluing(&mut self){
         let start_indexes: Vec<_> = self.system.iter().enumerate().map(|(ind, _)|ind).collect();
+        self.made_gluing_this_and_created(start_indexes);
+    }
+
+    pub fn made_gluing_this_and_created(&mut self, start_indexes: Vec<usize>){
         let mut need_gluing = LinkedList::new();
         need_gluing.push_back(start_indexes);
         while !need_gluing.is_empty() {
@@ -89,13 +94,17 @@ impl<N:Name, T:Hash + Eq> ClauseSystem<N, T>{
     pub fn made_all_resolvent(&mut self, max_iteration: Option<usize>) -> ResolventResult{
         if self.system.len() < 2 { return ResolventResult::EmptyClauseNotDerivable } // ? or is_empty ? 
         
+        let initial_len = self.system.len();
+
         let mut cur_index = self.system.len() - 1;
-        let mut second_index = self.system.len() - 2;
+        let mut start_index = 0;
 
         let mut rest_iter = max_iteration.unwrap_or(1);
         while rest_iter > 0 {
-            let exception = self.action_info.get_resolv((second_index, cur_index));
-            let left = self.system.get(second_index).unwrap();
+            println!("TODO:DEL: start={}   cur={}  rest={}", start_index, cur_index, rest_iter); // TODO:DEL!
+            // println!("TODO:DEL: {}", self); // TODO:DEL!
+            let exception = self.action_info.get_resolv((start_index, cur_index));
+            let left = self.system.get(start_index).unwrap();
             let right = self.system.get(cur_index).unwrap();
             let indexes = OneClause::get_potential_contrary_pairs(left, right, exception);
 
@@ -113,23 +122,32 @@ impl<N:Name, T:Hash + Eq> ClauseSystem<N, T>{
             'add_tried:
             for (ind, try_pair) in indexes.iter().enumerate(){
                 if ind == tried { break'add_tried }
-                self.action_info.add_resolv((second_index, cur_index), *try_pair)
+                self.action_info.add_resolv((start_index, cur_index), *try_pair)
             }
 
             if let Some(clause) = new_clause{
                 cur_index = self.add_in_system(clause);
-                self.made_gluing_only_for_line(cur_index);
-                second_index = cur_index - 1;
+                if self.system.get(cur_index).unwrap().is_empty_clause() { return ResolventResult::EmptyClauseDerivable }
+                let start_gluing = self.made_gluing_only_for_line(cur_index);
+                self.made_gluing_this_and_created(start_gluing);
+                cur_index = self.system.len() - 1;
+                start_index += 1;
+                if start_index == initial_len { start_index = 0 } 
             } else {
-                if second_index == 0 {
+                if start_index == initial_len { start_index = 0 }
+                else { start_index += 1 } 
+                /* 
+                if start_index == (cur_index - 1) {
                     if cur_index == 1 { return ResolventResult::EmptyClauseNotDerivable }
                     cur_index = cur_index - 1; 
+                    start_index = 0;
                 } else {
-                    second_index = second_index - 1;
+                    start_index += 1;
                 }
+                */
             }
 
-            if max_iteration.is_some() { rest_iter = rest_iter - 1; }
+            if max_iteration.is_some() { rest_iter -= 1; }
         }
         return ResolventResult::EmptyClauseNotDerivable 
     }
@@ -209,7 +227,8 @@ impl<N:Name, T: Hash + Eq + std::fmt::Display> std::fmt::Display for ClauseSyste
                 if x.is_negative() { write!(f, "¬")?; }
                 display_predicate_helper(f, &self.name_holder, x.get_predicate())?;
                 first = false;
-             }
+            }
+            if clause.is_empty_clause() { write!(f, "◻")?; }
             writeln!(f, "")?;
         }
         writeln!(f, "  }}")?;
