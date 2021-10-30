@@ -2,7 +2,7 @@ use std::{hash::Hash, fmt};
 
 use crate::logic::term_type::TermType;
 
-#[derive(PartialEq, Eq, Hash, Clone, Debug)]
+#[derive(PartialEq, Eq, Hash, Clone, Debug, PartialOrd, Ord)]
 pub struct StdName{
     pub name_type: Option<TermType>,
     pub name: usize,
@@ -35,8 +35,7 @@ impl Name for StdName {
     fn get_without_index(&self) -> Self { Self{ name_type: Some(self.name_type()), name: self.name, index: 0 } }
 }
 
-pub trait Name where Self: Eq + Clone + Hash{
-    
+pub trait Name where Self: Eq + Clone + Hash /* + std::fmt::Display */{
     fn first_name(term_type: TermType) -> Self;
 
     fn name_type(&self) -> TermType;

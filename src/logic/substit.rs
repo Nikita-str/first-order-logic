@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fmt, hash::Hash};
 
 use crate::common::{name::Name, name_holder::NameHolder};
-use super::{expr::Expr, terms::{Term, VarTerm}};
+use super::{expr::Expr, predicate_expr::PredicateExpr, terms::{Term, VarTerm}};
 
 pub struct Substitution<N: Name>{
     substs: HashMap<VarTerm<N>, Term<N>>
@@ -51,6 +51,18 @@ impl<N: Name> SubstitutionApply<Expr<N>> for Substitution<N>{
             }
         }
     }
+}
+
+impl<N: Name> SubstitutionApply<PredicateExpr<N>> for Substitution<N>{
+    fn apply(&self, other: &mut PredicateExpr<N>) { 
+        other.get_params_mut().into_iter().for_each(|term|self.apply(term)) 
+    }
+}
+
+impl<'a, N:Name, X> SubstitutionApply<Vec<X>> for Substitution<N>
+where Substitution<N>: SubstitutionApply<X>
+{
+    fn apply(&self, other: &mut Vec<X>) { for x in other { self.apply(x) } }
 }
 
 pub trait SubstitutionApply<O>{ fn apply(&self, other: &mut O); }

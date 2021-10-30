@@ -3,20 +3,20 @@ use std::{cell::{Ref, RefCell}, fmt, rc::Rc};
 use crate::common::{deep_copy::DeepCopy, name::Name};
 
 
-#[derive(PartialEq, Eq, Clone, Debug)]
+#[derive(PartialEq, Eq, Clone, Debug, PartialOrd)]
 pub struct ConstTerm<N: Name>{ pub name: N }
 impl<N: Name> ConstTerm<N>{ 
     pub fn get_name(&self) -> &N { &self.name } 
 }
 
-#[derive(PartialEq, Eq, Hash, Clone, Debug)]
+#[derive(PartialEq, Eq, Hash, Clone, Debug, PartialOrd)]
 pub struct VarTerm<N: Name>{ pub name: N }
 impl<N: Name> VarTerm<N>{ 
     pub fn get_name(&self) -> &N { &self.name } 
     pub fn set_var_index(&mut self, index:usize) { self.name.set_index(index) }
 }
 
-#[derive(PartialEq, Eq, Clone, Debug)]
+#[derive(PartialEq, Eq, Clone, Debug, PartialOrd)]
 pub struct FuncTerm<N: Name>{
     pub name: N,
     pub params: Vec<Term<N>>,
@@ -160,6 +160,22 @@ impl<N: Name> PartialEq for Term<N>{
     }
 }
 
+impl<N:Name + PartialOrd> PartialOrd for Term<N>{
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        match (self, other) {
+            (Term::Const(c1), Term::Const(c2)) => c1.borrow().partial_cmp(&c2.borrow()),
+            (Term::Var(v1), Term::Var(v2)) => v1.borrow().partial_cmp(&v2.borrow()),
+            (Term::Func(f1), Term::Func(f2)) => f1.borrow().partial_cmp(&f2.borrow()),
+            
+            (Term::Var(_), _) => Some(std::cmp::Ordering::Less),
+
+            (Term::Const(_), Term::Var(_)) => Some(std::cmp::Ordering::Greater),
+            (Term::Const(_), _) => Some(std::cmp::Ordering::Less),
+
+            (Term::Func(_), _) => Some(std::cmp::Ordering::Greater),
+        }        
+    }
+}
 
 
 

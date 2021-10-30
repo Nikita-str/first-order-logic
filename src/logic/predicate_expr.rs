@@ -2,7 +2,7 @@ use std::{collections::LinkedList};
 use crate::{common::name::Name, logic::substit::{Substitution, SubstitutionApply}};
 use super::terms::Term;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, PartialOrd)]
 pub struct PredicateExpr<N: Name>{
     pub name: N,
     pub params: Vec<Term<N>>,
@@ -24,8 +24,10 @@ impl<N: Name> PredicateExpr<N>{
     }
 }
 
-impl<N: Name + std::fmt::Display> PredicateExpr<N>{
-    pub fn most_comon_unifier<'a>(p1: &Self, p2: &Self) -> Option<Substitution<N>>{
+impl<N: Name> PredicateExpr<N>{
+    pub fn most_comon_unifier<F>(p1: &Self, p2: &Self, printer: F) -> Option<Substitution<N>>
+    where F: Fn(&Term<N>, &Term<N>)
+    {
         if p1.params.len() != p2.params.len() || p1.name != p2.name { return None }
         if p1.params.len() == 0 { return Some(Substitution::new_empty()) }
 
@@ -34,7 +36,7 @@ impl<N: Name + std::fmt::Display> PredicateExpr<N>{
             left: Term<N0>,
             right: Term<N0>,
         }
-        let lr_is_ok = |l: &Term<_>, r: &Term<_>| l.is_var() && r.without_var();
+        let lr_is_ok = |l: &Term<_>, r: &Term<_>| l.is_var() && r.without_var() || l.is_var() && r.is_var();
         //let line_is_ok = |line: &Line<_>| line.ok || lr_is_ok(&line.left, &line.right);
 
         struct Lines<N0: Name>{
@@ -68,7 +70,9 @@ impl<N: Name + std::fmt::Display> PredicateExpr<N>{
             let left = cur_line.left; 
             let right = cur_line.right; 
 
-            println!("L:{}   R:{}", left, right);
+            //println!("L:{}   R:{}", left, right);
+            //println!("TODO:DEL: {:?}", all_gl);
+            printer(&left, &right);
 
             if left.is_func() && right.is_func() {
                 let f_sz = left.func_size();
