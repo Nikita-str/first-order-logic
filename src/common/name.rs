@@ -28,6 +28,11 @@ impl Name for StdName {
     fn next_tst_name(&self) -> Self { Self { name_type: Some(self.name_type()), name: self.name + 1, index: self.index } }
     fn next_tst_index(&self) -> Self { Self { name_type: Some(self.name_type()), name: self.name, index: self.index + 1 } }
     fn bad_name() -> Self { Self { name_type: None, name: 0, index: 0 } }
+
+    fn set_index(&mut self, index: usize) { self.index = index; }
+    fn get_index(&self) -> usize { self.index }
+
+    fn get_without_index(&self) -> Self { Self{ name_type: Some(self.name_type()), name: self.name, index: 0 } }
 }
 
 pub trait Name where Self: Eq + Clone + Hash{
@@ -43,6 +48,10 @@ pub trait Name where Self: Eq + Clone + Hash{
     fn new(name_type: NameType) -> Self;
     */
     fn bad_name() -> Self;
+
+    fn set_index(&mut self, index: usize); // TODO: generic index type
+    fn get_index(&self) -> usize;
+    fn get_without_index(&self) -> Self;
 }
 
 

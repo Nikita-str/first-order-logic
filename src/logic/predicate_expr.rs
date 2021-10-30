@@ -18,6 +18,10 @@ impl<N: Name> PredicateExpr<N>{
     pub fn get_name(&self) -> &N { &self.name }
     pub fn get_params(&self) -> &Vec<Term<N>> { &self.params }
     pub fn get_params_mut(&mut self) -> &mut Vec<Term<N>> { &mut self.params }
+
+    pub fn set_var_index(&mut self, index: usize){
+        for x in self.params.iter_mut() { x.set_var_index(index) }
+    }
 }
 
 impl<N: Name + std::fmt::Display> PredicateExpr<N>{

@@ -1,6 +1,6 @@
 use std::{fmt::Formatter, hash::Hash};
 use crate::{common::{deep_copy::DeepCopy, ok_parse::display_predicate_helper}, logic::{expr::Expr, operations::BinaryOperations}};
-use super::{name::Name, name_holder::NameHolder, ok_parse::display_expr_help_func, one_clause::OneClause};
+use super::{name::Name, name_holder::NameHolder, one_clause::OneClause};
 
 
 pub struct ClauseSystem<N:Name, T:Hash + Eq>{
@@ -44,6 +44,11 @@ impl<N:Name, T:Hash + Eq> ClauseSystem<N, T>{
         let mut clauses = vec![];
         for x in system { clauses.push(OneClause::new(x)) }
         clauses
+    }
+
+    
+    pub fn set_unique_var_index(&mut self) {
+        for (index, clause) in self.system.iter_mut().enumerate() { clause.set_var_index(index + 1) }
     }
 }
 

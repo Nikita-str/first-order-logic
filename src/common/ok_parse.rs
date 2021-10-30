@@ -143,8 +143,13 @@ where  N: Name, T: Hash + Eq + Display,
 fn write_name_helper<N, T>(f: &mut std::fmt::Formatter<'_>, nh: &NameHolder<N, T>, n: &N) -> std::fmt::Result
 where N: Name, T: Hash + Eq + Display,
 {
+    let index = n.get_index();
     let (sh, token) = nh.token_by_name_unchecked(n);
-    if sh == 0 { write!(f, "{}", token) } else { write!(f, "{}_{}", token, sh) }
+    if index == 0 {
+        if sh == 0 { write!(f, "{}", token) } else { write!(f, "{}_{}", token, sh) }
+    } else {
+        write!(f, "{}_{}_{}", token, sh, index)
+    }
 } 
 
 pub fn display_term_help_func<N, T>(f: &mut std::fmt::Formatter<'_>, nh: &NameHolder<N, T>, terms: &Vec<Term<N>>) -> std::fmt::Result

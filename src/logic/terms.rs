@@ -5,11 +5,16 @@ use crate::common::{deep_copy::DeepCopy, name::Name};
 
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct ConstTerm<N: Name>{ pub name: N }
-impl<N: Name> ConstTerm<N>{ pub fn get_name(&self) -> &N { &self.name } }
+impl<N: Name> ConstTerm<N>{ 
+    pub fn get_name(&self) -> &N { &self.name } 
+}
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
 pub struct VarTerm<N: Name>{ pub name: N }
-impl<N: Name> VarTerm<N>{ pub fn get_name(&self) -> &N { &self.name } }
+impl<N: Name> VarTerm<N>{ 
+    pub fn get_name(&self) -> &N { &self.name } 
+    pub fn set_var_index(&mut self, index:usize) { self.name.set_index(index) }
+}
 
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct FuncTerm<N: Name>{
@@ -21,6 +26,9 @@ impl<N: Name> FuncTerm<N>{
     pub fn get_name(&self) -> &N { &self.name }
     pub fn get_params(&self) -> &Vec<Term<N>>{ &self.params }
     pub fn get_params_mut(&mut self) -> &mut Vec<Term<N>>{ &mut self.params }
+    pub fn set_var_index(&mut self, index:usize) { 
+        for x in self.params.iter_mut() { x.set_var_index(index); }
+    }
 }
 
 
@@ -85,6 +93,14 @@ impl<N: Name> Term<N>{
             Term::Const(rc) => { Term::Const(Rc::new(RefCell::new(rc.as_ref().borrow().clone()))) },
             Term::Func(rc) => { Term::Func(Rc::new(RefCell::new(rc.as_ref().borrow().clone()))) },
             Term::Var(rc) => { Term::Var(Rc::new(RefCell::new(rc.as_ref().borrow().clone()))) },
+        }
+    }
+
+    pub fn set_var_index(&mut self, index: usize) {
+        match self {
+            Self::Const(c) => {},
+            Self::Func(f) => f.borrow_mut().set_var_index(index),
+            Self::Var(v) => v.borrow_mut().set_var_index(index),
         }
     }
 }

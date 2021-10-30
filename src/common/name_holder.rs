@@ -250,6 +250,7 @@ impl<N: Name, T: Hash + Eq> NameHolder<N, T>{
     }
 
     pub fn token_by_name_unchecked(&self, name: &N) -> (usize, &T) {
+        let name = &name.get_without_index();
         let mut sh = 0;
         let name = if let Some(name) = self.rename_to_init.get(name) { sh = name.0; &name.1 } else { name };
         (sh, self.name_to_token.get(name).unwrap())
@@ -269,8 +270,13 @@ impl<N:Name, T: Hash + Eq + std::fmt::Display> NameHolder<N, T>{
         let mut first = true;
         for var in iter.into_iter(){
             if !first { print!(", "); }
+            let index = var.get_index();
             let (sh, token) = self.token_by_name_unchecked(var);
-            if sh == 0 { print!("{}", token) } else { print!("{}_{}", token, sh) };
+            if index == 0 {
+                if sh == 0 { print!("{}", token) } else { print!("{}_{}", token, sh) }
+            } else {
+                print!("{}_{}_{}", token, sh, index)
+            }
             first = false;
         }
         println!(" }}");        

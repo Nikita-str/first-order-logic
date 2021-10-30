@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use super::name::Name;
 use crate::logic::{expr::Expr, operations::BinaryOperations, predicate_expr::PredicateExpr};
 
@@ -33,6 +35,8 @@ impl<N:Name> ClauseElem<N>{
     pub fn is_negative(&self) -> bool { !self.positive }
 
     pub fn get_predicate(&self) -> &PredicateExpr<N> { &self.predicate }
+
+    pub fn set_var_index(&mut self, index: usize) { self.predicate.set_var_index(index); }
 }
 
 pub struct OneClause<N:Name>{
@@ -64,4 +68,19 @@ impl<N:Name> OneClause<N>{
     }
 
     pub fn get_elems(&self) -> &Vec<ClauseElem<N>> { &self.elems }
+
+    pub fn set_var_index(&mut self, index: usize) {
+        for clause_elem in self.elems.iter_mut() { clause_elem.set_var_index(index) }
+    }
+
+    /// TODO: add exception pairs (already checked, for example)
+    pub fn get_potential_contrary_pairs(a: &Self, b:&Self) -> HashSet<(usize, usize)>{
+        let mut ret = HashSet::new();
+        for (a_ind, a_elem) in a.elems.iter().enumerate() {
+            for (b_ind, b_elem) in b.elems.iter().enumerate(){
+                if ClauseElem::is_can_be_contrary_pair(&a_elem, &b_elem) { ret.insert((a_ind, b_ind)); }
+            }
+        }
+        ret
+    }
 }
