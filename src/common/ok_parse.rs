@@ -44,8 +44,8 @@ where
 T: DefaultTerm + Clone
 {
 
-    pub fn exist_quant_transform(&mut self) {
-        self.exist_quant_transform_impl_term(T::default_term(TermType::Const), T::default_term(TermType::Func));
+    pub fn exist_quant_transform(&mut self) -> Substitution<N> {
+        self.exist_quant_transform_impl_term(T::default_term(TermType::Const), T::default_term(TermType::Func))
     }
 }
 
@@ -53,13 +53,14 @@ impl<N:Name, T:Hash + Eq + Clone> OkParse<N,T>{
     /// (from ПНФ to ССФ)
     /// 
     /// any a1 ... any a_n exist x formula(a_1, ..., a_n, x) => formula(a_1, ..., a_n, new_f(a_1, ..., a_n)) 
-    pub fn exist_quant_transform_impl_term(&mut self, term_const: T, term_func: T) {
+    pub fn exist_quant_transform_impl_term(&mut self, term_const: T, term_func: T) -> Substitution<N> {
         // let mut expr = &mut self.expr;
         // let mut params = vec![];
         // Self::exist_quant_create_subst(&mut self.name_holder, &mut self.expr, &mut params);
         // params
         let subst = Self::exist_quant_create_subst_42(&mut self.name_holder, &mut self.expr, term_const, term_func);
         subst.apply(&mut self.expr);
+        subst
     }
 
     /* 
@@ -138,6 +139,37 @@ where  N: Name, T: Hash + Eq + Display,
     { display_expr_help_func(&self.expr, &self.name_holder, f) }
 }
 
+
+fn write_name_helper<N, T>(f: &mut std::fmt::Formatter<'_>, nh: &NameHolder<N, T>, n: &N) -> std::fmt::Result
+where N: Name, T: Hash + Eq + Display,
+{
+    let (sh, token) = nh.token_by_name_unchecked(n);
+    if sh == 0 { write!(f, "{}", token) } else { write!(f, "{}_{}", token, sh) }
+} 
+
+pub fn display_term_help_func<N, T>(f: &mut std::fmt::Formatter<'_>, nh: &NameHolder<N, T>, terms: &Vec<Term<N>>) -> std::fmt::Result
+where N: Name, T: Hash + Eq + Display,
+{
+    let mut first = true;
+    for term in terms{
+        if !first { write!(f, ", ")?; }
+        match term {
+            Term::Const(_) => {write_name_helper(f, nh, term.get_const().get_name())?; }
+            Term::Var(_) => { write_name_helper(f, nh, term.get_var().get_name())?; }
+            Term::Func(_) => { 
+                let func = term.get_func();
+                write_name_helper(f, nh, func.get_name())?;
+                write!(f, "(")?;
+                let f_terms =  func.get_params();
+                display_term_help_func(f, nh, f_terms)?;
+                write!(f, ")")?;
+            }
+        };
+        first = false;
+    }
+    Ok(())
+}
+
 pub fn display_expr_help_func<N, T>(expr: &Expr<N>, nh: &NameHolder<N, T>, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result 
 where 
 N: Name,
@@ -145,7 +177,8 @@ T: Hash + Eq + Display,
 {
     // TODO: del rec / stay only tail-rec
 
-    let wr_name = |f: &mut std::fmt::Formatter<'_>, n: &N|{
+    /* 
+    let write_name_helper = |f: &mut std::fmt::Formatter<'_>, n: &N|{
         let (sh, token) = nh.token_by_name_unchecked(n);
         if sh == 0 { write!(f, "{}", token) } else { write!(f, "{}_{}", token, sh) }
     };
@@ -157,11 +190,11 @@ T: Hash + Eq + Display,
             for term in terms{
                 if !first { write!(f, ", ")?; }
                 match term {
-                    Term::Const(_) => {wr_name(f, term.get_const().get_name())?; }
-                    Term::Var(_) => { wr_name(f, term.get_var().get_name())?; }
+                    Term::Const(_) => {write_name_helper(f, term.get_const().get_name())?; }
+                    Term::Var(_) => { write_name_helper(f, term.get_var().get_name())?; }
                     Term::Func(_) => { 
                         let func = term.get_func();
-                        wr_name(f, func.get_name())?;
+                        write_name_helper(f, func.get_name())?;
                         write!(f, "(")?;
                         let f_terms =  func.get_params();
                         (wr_terms.cl)(&wr_terms, f, f_terms)?;
@@ -173,6 +206,7 @@ T: Hash + Eq + Display,
             Ok(())
         }
     };
+    */
 
     match expr {
         Expr::Quant(_) => {
@@ -181,7 +215,7 @@ T: Hash + Eq + Display,
                 Quants::All => write!(f, "∀")?,
                 Quants::Exist => write!(f, "∃")?,
             };
-            wr_name(f, q.get_var_name())?;
+            write_name_helper(f, nh, q.get_var_name())?;
             write!(f, ": ")?;
             let need_br  = q.get_expr().is_binary_op();
             if need_br { write!(f, "[")?; }
@@ -229,9 +263,10 @@ T: Hash + Eq + Display,
         }
         Expr::Predicate(_) => {
             let p = expr.get_expr_predicate();
-            wr_name(f, p.get_name())?;
+            write_name_helper(f, nh, p.get_name())?;
             write!(f, "(")?;
-            (wr_terms.cl)(&wr_terms, f, p.get_params())?;
+            //(wr_terms.cl)(&wr_terms, f, p.get_params())?;
+            display_term_help_func(f, nh, p.get_params())?;
             write!(f, ")")          
         }
         Expr::Empty => write!(f, "#"),

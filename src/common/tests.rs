@@ -5,6 +5,7 @@ mod parse_str_test{
     use crate::common::{name::StdName, parse, ok_parse::OkParse};
     use crate::common::parse_str::ParseStr;
     use crate::logic::expr::Expr;
+    use crate::logic::substit::DisplaySubst;
 
     fn test_help(ps: ParseStr, expects: Vec<&str>){
         let mut iter = ps.into_iter(); 
@@ -263,9 +264,11 @@ mod parse_str_test{
     #[test]
     fn parse_test_6(){
         let ruleset = ParseStr::create_std_ruleset();
+        //let ps = ParseStr::new("exist x (P(x, f(y, g(x, a), a), b) | exist y P(y, x, x)) | P(h(x), g(x, y), a)");
+
         //let ps = ParseStr::new("exist x any x_any exist y exist z any y_any exist w (P(f(a, x), y_any, y, g(z, x_any, w), x, x_any, y, w) & (R(x, y_any) | R(a, z)))");
-        //let ps = ParseStr::new("exist x any y exist z ((P(x, y) & P(x, z)) | (P(y, z) & P(y, z)))");
-        let ps = ParseStr::new("exist x any y any z ((P(x, y) | (P(x, z) & R(z, c, y))) | (P(a, b) & P(b, z)))");
+        let ps = ParseStr::new("exist x any y exist z ((P(x, y) & P(x, z)) | (P(y, z) & P(y, z)))");
+        //let ps = ParseStr::new("exist x any y any z ((P(x, y) | (P(x, z) & R(z, c, y))) | (P(a, b) & P(b, z)))");
         let expr = parse::parse::<StdName, _, _>(&ruleset, &mut ps.into_iter());
         match expr {
             Err(err) => println!("NONE :(  [err={:?}]", err),
@@ -280,8 +283,9 @@ mod parse_str_test{
                 println!("");
                 println!("");
                 println!("TEST:");
-                println!("vec vars: {:?}", ok.exist_quant_transform());
-                println!("EXPR : {}", ok);
+                let subst = ok.exist_quant_transform();
+                println!("for deleting exist quantor we use substitution: {}", DisplaySubst{nh: ok.get_name_holder(), substs: &subst} );
+                println!("now our expr: {}", ok);
 
                 let (expr, nh) = ok.disassemble();
                 let cs = ClauseSystem::new(&expr, nh);

@@ -1,6 +1,6 @@
-use std::{collections::HashMap, fmt};
+use std::{collections::HashMap, fmt, hash::Hash};
 
-use crate::common::name::Name;
+use crate::common::{name::Name, name_holder::NameHolder};
 use super::{expr::Expr, terms::{Term, VarTerm}};
 
 pub struct Substitution<N: Name>{
@@ -64,5 +64,27 @@ impl<N: Name> fmt::Display for Substitution<N> where N: fmt::Display{
         write!(f, "{{  ")?;
         for subst in &self.substs { write!(f, "{}/{}  ", subst.0, subst.1)?; }
         write!(f, "}}")
+    }
+}
+
+pub struct DisplaySubst<'a, N, T>
+where N:Name, T: Hash + Eq,
+{
+    pub nh: &'a NameHolder<N, T>,
+    pub substs: &'a Substitution<N>
+}
+
+impl<'a, N: Name, T> fmt::Display for DisplaySubst<'a, N, T> 
+where T: fmt::Display + Hash + Eq
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{{   ")?;
+        for subst in &self.substs.substs { 
+            crate::common::ok_parse::display_term_help_func(f, self.nh, &vec![Term::new_var(subst.0.clone())])?;
+            write!(f, "/")?; 
+            crate::common::ok_parse::display_term_help_func(f, self.nh, &vec![subst.1.clone()])?;
+            write!(f, "   ")?; 
+        }   
+        write!(f, "}}")  
     }
 }
