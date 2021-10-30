@@ -94,7 +94,7 @@ impl<N:Name, T:Hash + Eq + std::fmt::Display> ClauseSystem<N, T>{
     pub fn made_all_resolvent(&mut self, max_iteration: Option<usize>) -> ResolventResult{
         if self.system.len() < 2 { return ResolventResult::EmptyClauseNotDerivable } // ? or is_empty ? 
         
-        let initial_len = self.system.len();
+        let initial_len = self.system.len() - 1;
 
         let mut cur_index = self.system.len() - 1;
         let mut start_index = 0;
@@ -134,8 +134,8 @@ impl<N:Name, T:Hash + Eq + std::fmt::Display> ClauseSystem<N, T>{
                 start_index += 1;
                 if start_index == initial_len { start_index = 0 } 
             } else {
+                start_index += 1;
                 if start_index == initial_len { start_index = 0 }
-                else { start_index += 1 } 
                 /* 
                 if start_index == (cur_index - 1) {
                     if cur_index == 1 { return ResolventResult::EmptyClauseNotDerivable }

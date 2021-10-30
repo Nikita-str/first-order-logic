@@ -311,7 +311,8 @@ mod parse_str_test{
         let ruleset = ParseStr::create_std_ruleset();
 
         //let ps = ParseStr::new("P(a)");
-        let ps = ParseStr::new("P(y, f(x)) & (Q(y) | !Q(z) | !P(y, f(z)) | !Q(w)) & Q(b) & !Q(z)");
+        //let ps = ParseStr::new("P(y, f(x)) & (Q(y) | !Q(z) | !P(y, f(z)) | !Q(w)) & Q(b) & !Q(z)");
+        let ps = ParseStr::new("P(y, f(x)) & (Q(y) | !Q(z) | !P(y, f(z))) & Q(b) & !Q(z) & R(c)");
         let expr = parse::parse::<StdName, _, _>(&ruleset, &mut ps.into_iter());
         match expr {
             Err(err) => println!("NONE :(  [err={:?}]", err),
