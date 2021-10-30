@@ -1,6 +1,6 @@
 use std::{cell::{Ref, RefCell}, fmt, rc::Rc};
 
-use crate::common::name::Name;
+use crate::common::{deep_copy::DeepCopy, name::Name};
 
 
 #[derive(PartialEq, Eq, Clone, Debug)]
@@ -105,6 +105,32 @@ impl<N: Name> Clone for Term<N>{
         }
     }
 }
+
+impl<N:Name> DeepCopy for Term<N>{
+    fn deep_copy(&self) -> Self {
+        match self {
+            Term::Const(c) => Term::Const(Rc::new(RefCell::new(c.borrow().deep_copy()))),
+            Term::Func(f) => Term::Func(Rc::new(RefCell::new(f.borrow().deep_copy()))),
+            Term::Var(v) => Term::Var(Rc::new(RefCell::new(v.borrow().deep_copy()))),
+        }
+    }
+}
+
+macro_rules! macro_dc_name {
+    ($type_name:ident) => {
+        impl<N:Name> DeepCopy for $type_name <N>{ fn deep_copy(&self) -> Self { Self{ name: self.name.clone() } } }
+    };
+}
+// just try easy macro (   never use it befor, recursive[for add FuncTerm case] failed :(   )
+macro_dc_name!(ConstTerm);
+macro_dc_name!(VarTerm);
+
+// it the same:
+//impl<N:Name> DeepCopy for ConstTerm<N>{ fn deep_copy(&self) -> Self { Self{ name: self.name.clone() } } }
+//impl<N:Name> DeepCopy for VarTerm<N>{ fn deep_copy(&self) -> Self { Self{ name: self.name.clone() } } }
+impl<N:Name> DeepCopy for FuncTerm<N>{ fn deep_copy(&self) -> Self { Self{ name: self.name.clone(), params: self.params.deep_copy() } } }
+
+
 
 impl<N: Name> Eq for Term<N>{}
 impl<N: Name> PartialEq for Term<N>{

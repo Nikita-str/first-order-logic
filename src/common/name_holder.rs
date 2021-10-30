@@ -260,3 +260,19 @@ impl<N: Name, T: Hash + Eq> NameHolder<N, T>{
     pub fn clear_waring_vars(&mut self) { self.warning_vars.clear(); }
 }
 
+
+impl<N:Name, T: Hash + Eq + std::fmt::Display> NameHolder<N, T>{
+    pub fn _display_vars_helper<'i, I>(&self, iter: I)
+    where I: IntoIterator<Item = &'i N>, N: 'i
+    {
+        print!("{{ ");
+        let mut first = true;
+        for var in iter.into_iter(){
+            if !first { print!(", "); }
+            let (sh, token) = self.token_by_name_unchecked(var);
+            if sh == 0 { print!("{}", token) } else { print!("{}_{}", token, sh) };
+            first = false;
+        }
+        println!(" }}");        
+    }
+}

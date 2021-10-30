@@ -1,5 +1,5 @@
 use std::{cell::{Ref, RefCell, RefMut}, collections::HashMap, rc::Rc};
-use crate::{common::name::Name};
+use crate::{common::{deep_copy::DeepCopy, name::Name}};
 use super::{all_symbs::AllSymbs, operations::{BinaryOperations, Operations, UnaryOperations}, predicate_expr::PredicateExpr, quants::Quants, term_type::TermType, terms::Term};
 
 
@@ -76,6 +76,8 @@ impl<N:Name> Expr<N>{
     pub fn new_predicate(name: N, params: Vec<Term<N>>) -> Self{
         Expr::Predicate(Rc::new(RefCell::new(PredicateExpr::new(name, params))))
     }
+
+    pub fn new_binary_by_expr(bop: BinaryOpExpr<N>) -> Self{ Expr::BinaryOp(Rc::new(RefCell::new(bop))) }
 
     
     pub fn get_expr_predicate(&self) -> Ref<'_, PredicateExpr<N>>{
@@ -385,3 +387,39 @@ impl<N: Name> Clone for Expr<N>{
         }
     }
 }
+
+impl<N: Name> DeepCopy for Expr<N>{
+    fn deep_copy(&self) -> Self {
+        match self {
+            Expr::Empty => Expr::Empty,
+            Expr::Quant(q) => Expr::Quant(Rc::new(RefCell::new(q.borrow().deep_copy()))),
+            Expr::UnaryOp(u) => Expr::UnaryOp(Rc::new(RefCell::new(u.borrow().deep_copy()))),
+            Expr::BinaryOp(b) => Expr::BinaryOp(Rc::new(RefCell::new(b.borrow().deep_copy()))),
+            Expr::Predicate(p) => Expr::Predicate(Rc::new(RefCell::new(p.borrow().deep_copy()))),
+        }
+    }
+}
+
+impl<N: Name> DeepCopy for ExprQuant<N>{
+    fn deep_copy(&self) -> Self {
+        Self{ quant: self.quant, var_name: self.var_name.clone(), expr: self.expr.deep_copy() }
+    }
+}
+
+impl<N: Name> DeepCopy for UnaryOpExpr<N>{
+    fn deep_copy(&self) -> Self { UnaryOpExpr{ op: self.op, formula: self.formula.deep_copy() } }
+}
+
+impl<N: Name> DeepCopy for BinaryOpExpr<N>{
+    fn deep_copy(&self) -> Self { 
+        BinaryOpExpr{ op: self.op, left_formula: self.left_formula.deep_copy(),  right_formula: self.right_formula.deep_copy(), } 
+    }
+}
+
+impl<N: Name> DeepCopy for PredicateExpr<N>{
+    fn deep_copy(&self) -> Self { 
+        PredicateExpr{ name: self.name.clone(), params: self.params.deep_copy() } 
+    }
+}
+
+

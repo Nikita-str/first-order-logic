@@ -2,7 +2,7 @@ use std::{fmt::Display, hash::Hash};
 
 use crate::logic::{default_term::DefaultTerm, expr::{Expr}, operations::{BinaryOperations, UnaryOperations}, quants::Quants, substit::{Substitution, SubstitutionApply}, term_type::TermType, terms::{Term, VarTerm}};
 
-use super::{name::Name, name_holder::NameHolder};
+use super::{name::Name, name_holder::{NameHolder}};
 
 pub struct OkParse<N:Name, T: Hash + Eq>{
     expr: Expr<N>,
@@ -14,6 +14,8 @@ impl<N:Name, T: Hash + Eq> OkParse<N, T>{
     pub fn get_mut_expr(&mut self) -> &mut Expr<N> { &mut self.expr }
     pub fn get_name_holder(&self) -> &NameHolder<N, T> { &self.name_holder }
     pub fn get_mut_name_holder(&mut self) -> &mut NameHolder<N, T> { &mut self.name_holder }
+    
+    pub fn disassemble(self) -> (Expr<N>, NameHolder<N, T>) { (self.expr, self.name_holder) }
 
     /// close the logic formula
     /// 
@@ -125,32 +127,18 @@ impl<N:Name, T:Hash + Eq + Clone> OkParse<N,T>{
 }
 
 impl<N:Name, T: Hash + Eq + Display> OkParse<N, T>{
-    fn display_vars_helper<'i, I>(&self, iter: I)
-    where I: IntoIterator<Item = &'i N>, N: 'i
-    {
-        print!("{{ ");
-        let mut first = true;
-        for var in iter.into_iter(){
-            if !first { print!(", "); }
-            let (sh, token) = self.name_holder.token_by_name_unchecked(var);
-            if sh == 0 { print!("{}", token) } else { print!("{}_{}", token, sh) };
-            first = false;
-        }
-        println!(" }}");        
-    }
-
-    pub fn display_free_vars(&self) { self.display_vars_helper(self.name_holder.get_free_vars().values()); }
-    pub fn display_warning_vars(&self) { self.display_vars_helper(self.name_holder.get_waring_vars()); }
+    pub fn display_free_vars(&self) { self.name_holder._display_vars_helper(self.name_holder.get_free_vars().values()); }
+    pub fn display_warning_vars(&self) { self.name_holder._display_vars_helper(self.name_holder.get_waring_vars()); }
 }
 
 impl<N, T> Display for OkParse<N, T>
 where  N: Name, T: Hash + Eq + Display, 
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result 
-    { display_help_func(&self.expr, &self.name_holder, f) }
+    { display_expr_help_func(&self.expr, &self.name_holder, f) }
 }
 
-fn display_help_func<N, T>(expr: &Expr<N>, nh: &NameHolder<N, T>, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result 
+pub fn display_expr_help_func<N, T>(expr: &Expr<N>, nh: &NameHolder<N, T>, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result 
 where 
 N: Name,
 T: Hash + Eq + Display,
@@ -197,7 +185,7 @@ T: Hash + Eq + Display,
             write!(f, ": ")?;
             let need_br  = q.get_expr().is_binary_op();
             if need_br { write!(f, "[")?; }
-            display_help_func(q.get_expr(), nh, f)?;
+            display_expr_help_func(q.get_expr(), nh, f)?;
             if need_br { write!(f, "]")?; }
             Ok(())
         }
@@ -208,7 +196,7 @@ T: Hash + Eq + Display,
             };
             let need_br  = uop.get_expr().is_binary_op();
             if need_br { write!(f, "[")?; }
-            display_help_func(uop.get_expr(), nh, f)?;
+            display_expr_help_func(uop.get_expr(), nh, f)?;
             if need_br { write!(f, "]")?; }
             Ok(())
         }
@@ -225,7 +213,7 @@ T: Hash + Eq + Display,
             let other_prior = lexpr.get_priority().unwrap_or(0);
             let need_br = lexpr.is_binary_op() && other_prior < prior;
             if need_br { write!(f, "[")?; }
-            display_help_func(lexpr, nh, f)?;
+            display_expr_help_func(lexpr, nh, f)?;
             if need_br { write!(f, "]")?; }
             
             write!(f, " {} ", op)?;
@@ -234,7 +222,7 @@ T: Hash + Eq + Display,
             let other_prior = rexpr.get_priority().unwrap_or(0);
             let need_br = rexpr.is_binary_op() && other_prior < prior;
             if need_br { write!(f, "[")?; }
-            display_help_func(rexpr, nh, f)?;
+            display_expr_help_func(rexpr, nh, f)?;
             if need_br { write!(f, "]")?; }
 
             Ok(())
