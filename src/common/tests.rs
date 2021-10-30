@@ -267,8 +267,8 @@ mod parse_str_test{
         //let ps = ParseStr::new("exist x (P(x, f(y, g(x, a), a), b) | exist y P(y, x, x)) | P(h(x), g(x, y), a)");
 
         //let ps = ParseStr::new("exist x any x_any exist y exist z any y_any exist w (P(f(a, x), y_any, y, g(z, x_any, w), x, x_any, y, w) & (R(x, y_any) | R(a, z)))");
-        let ps = ParseStr::new("exist x any y exist z ((P(x, y) & P(x, z)) | (P(y, z) & P(y, z)))");
-        //let ps = ParseStr::new("exist x any y any z ((P(x, y) | (P(x, z) & R(z, c, y))) | (P(a, b) & P(b, z)))");
+        //let ps = ParseStr::new("exist x any y exist z ((P(x, y) & P(x, z)) | (P(y, z) & P(y, z)))");
+        let ps = ParseStr::new("exist x any y any z ((P(x, y) | (!P(x, z) & R(z, c, y))) | (P(a, b) & P(b, z)))");
         let expr = parse::parse::<StdName, _, _>(&ruleset, &mut ps.into_iter());
         match expr {
             Err(err) => println!("NONE :(  [err={:?}]", err),

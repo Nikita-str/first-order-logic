@@ -1,6 +1,6 @@
 use std::{fmt::Display, hash::Hash};
 
-use crate::logic::{default_term::DefaultTerm, expr::{Expr}, operations::{BinaryOperations, UnaryOperations}, quants::Quants, substit::{Substitution, SubstitutionApply}, term_type::TermType, terms::{Term, VarTerm}};
+use crate::logic::{default_term::DefaultTerm, expr::{Expr}, operations::{BinaryOperations, UnaryOperations}, predicate_expr::PredicateExpr, quants::Quants, substit::{Substitution, SubstitutionApply}, term_type::TermType, terms::{Term, VarTerm}};
 
 use super::{name::Name, name_holder::{NameHolder}};
 
@@ -168,6 +168,15 @@ where N: Name, T: Hash + Eq + Display,
         first = false;
     }
     Ok(())
+}
+
+pub fn display_predicate_helper<N,T>(f: &mut std::fmt::Formatter<'_>, nh: &NameHolder<N, T>, p: &PredicateExpr<N>) -> std::fmt::Result
+where N: Name, T: Hash + Eq + Display,
+{
+    write_name_helper(f, nh, p.get_name())?;
+    write!(f, "(")?;
+    display_term_help_func(f, nh, p.get_params())?;
+    write!(f, ")") 
 }
 
 pub fn display_expr_help_func<N, T>(expr: &Expr<N>, nh: &NameHolder<N, T>, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result 

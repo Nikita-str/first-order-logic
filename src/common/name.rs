@@ -4,7 +4,7 @@ use crate::logic::term_type::TermType;
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
 pub struct StdName{
-    pub name_type: TermType,
+    pub name_type: Option<TermType>,
     pub name: usize,
     pub index: usize,
 }
@@ -22,11 +22,12 @@ impl StdName{
 
 
 impl Name for StdName {
-    fn first_name(term_type: TermType) -> Self { Self { name_type: term_type, name: 0, index: 0 } }
+    fn first_name(term_type: TermType) -> Self { Self { name_type: Some(term_type), name: 0, index: 0 } }
 
-    fn name_type(&self) -> TermType { self.name_type }
-    fn next_tst_name(&self) -> Self { Self { name_type: self.name_type, name: self.name + 1, index: self.index } }
-    fn next_tst_index(&self) -> Self { Self { name_type: self.name_type, name: self.name, index: self.index + 1 } }
+    fn name_type(&self) -> TermType { if let Some(x) = self.name_type { x } else { panic!("name is bad!") } }
+    fn next_tst_name(&self) -> Self { Self { name_type: Some(self.name_type()), name: self.name + 1, index: self.index } }
+    fn next_tst_index(&self) -> Self { Self { name_type: Some(self.name_type()), name: self.name, index: self.index + 1 } }
+    fn bad_name() -> Self { Self { name_type: None, name: 0, index: 0 } }
 }
 
 pub trait Name where Self: Eq + Clone + Hash{
@@ -41,13 +42,14 @@ pub trait Name where Self: Eq + Clone + Hash{
     /*
     fn new(name_type: NameType) -> Self;
     */
+    fn bad_name() -> Self;
 }
 
 
 
 impl fmt::Display for StdName{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { 
-        match self.name_type {
+        match self.name_type() {
             TermType::Const => write!(f, "c")?, 
             TermType::Var => write!(f, "X")?, 
             TermType::Func => write!(f, "f")?, 

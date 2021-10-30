@@ -1,11 +1,11 @@
 use std::{fmt::Formatter, hash::Hash};
-use crate::{common::deep_copy::DeepCopy, logic::{expr::Expr, operations::BinaryOperations}};
-use super::{name::Name, name_holder::NameHolder, ok_parse::display_expr_help_func};
+use crate::{common::{deep_copy::DeepCopy, ok_parse::display_predicate_helper}, logic::{expr::Expr, operations::BinaryOperations}};
+use super::{name::Name, name_holder::NameHolder, ok_parse::display_expr_help_func, one_clause::OneClause};
 
 
 pub struct ClauseSystem<N:Name, T:Hash + Eq>{
     name_holder: NameHolder<N, T>,
-    system: Vec<Expr<N>>,
+    system: Vec<OneClause<N>>,
 }
 
 impl<N:Name, T:Hash + Eq> ClauseSystem<N, T>{
@@ -13,7 +13,7 @@ impl<N:Name, T:Hash + Eq> ClauseSystem<N, T>{
         Self { name_holder, system: Self::get_expr_system(expr) }
     }
 
-    fn get_expr_system(expr: &Expr<N>) -> Vec<Expr<N>>{
+    fn get_expr_system(expr: &Expr<N>) -> Vec<OneClause<N>>{
         let mut system = vec![];
         let mut init_expr = expr.clone();
         while init_expr.is_quant() { 
@@ -41,9 +41,13 @@ impl<N:Name, T:Hash + Eq> ClauseSystem<N, T>{
             }
         }
 
-        system
+        let mut clauses = vec![];
+        for x in system { clauses.push(OneClause::new(x)) }
+        clauses
     }
 }
+
+
 
 
 impl<N:Name, T: Hash + Eq + std::fmt::Display> std::fmt::Display for ClauseSystem<N, T>{
@@ -51,7 +55,13 @@ impl<N:Name, T: Hash + Eq + std::fmt::Display> std::fmt::Display for ClauseSyste
         writeln!(f, "  {{")?;
         for clause in &self.system {
             write!(f, "    ")?;
-            display_expr_help_func(clause, &self.name_holder, f)?;
+            let mut first = true;
+            for x in clause.get_elems() { 
+                if !first { write!(f, " ∨ ")?; }
+                if x.is_negative() { write!(f, "¬")?; }
+                display_predicate_helper(f, &self.name_holder, x.get_predicate())?;
+                first = false;
+             }
             writeln!(f, "")?;
         }
         writeln!(f, "  }}")?;

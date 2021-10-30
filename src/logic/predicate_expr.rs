@@ -8,6 +8,10 @@ pub struct PredicateExpr<N: Name>{
     pub params: Vec<Term<N>>,
 }
 
+impl<N:Name> Default for PredicateExpr<N>{
+    fn default() -> Self { Self { name: N::bad_name(), params: vec![] } }
+}
+
 impl<N: Name> PredicateExpr<N>{
     pub fn new(name: N, params: Vec<Term<N>>) -> Self{ Self{name, params} }
 
