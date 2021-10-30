@@ -60,6 +60,8 @@ pub struct OneClause<N:Name>{
 }
 
 impl<N:Name> OneClause<N>{
+    pub fn is_empty_clause(&self) -> bool { self.elems.is_empty() }
+
     pub fn new(expr: Expr<N>) -> Self{
         let mut elems = vec![];
         let mut not_procced_expr = vec![expr];
@@ -90,11 +92,12 @@ impl<N:Name> OneClause<N>{
     }
 
     /// TODO: add exception pairs (already checked, for example)
-    pub fn get_potential_contrary_pairs(a: &Self, b:&Self) -> HashSet<(usize, usize)>{
+    pub fn get_potential_contrary_pairs(a: &Self, b:&Self, exception: &HashSet<(usize, usize)>) -> HashSet<(usize, usize)>{
         if std::ptr::eq(a, b) { panic!("use gluing instead") }
         let mut ret = HashSet::new();
         for (a_ind, a_elem) in a.elems.iter().enumerate() {
             for (b_ind, b_elem) in b.elems.iter().enumerate(){
+                if exception.contains(&(a_ind, b_ind)) { continue }
                 if ClauseElem::is_can_be_contrary_pair(&a_elem, &b_elem) { ret.insert((a_ind, b_ind)); }
             }
         }
@@ -135,22 +138,36 @@ impl<N:Name> OneClause<N>{
         None
     }
 
-    pub fn new_from_this(&self, index_delete: HashSet<usize>, subst: Option<Substitution<N>>) -> Self{
+    pub fn new_from_this(&self, index_delete: HashSet<usize>, subst: & Option<Substitution<N>>) -> Self{
         let mut ret_elems = vec![];
         for (ind, x) in self.get_elems().iter().enumerate() {
             if index_delete.contains(&ind) { continue }
             let mut predicate = x.predicate.deep_copy();
-            if let Some(sub) = &subst { sub.apply(& mut predicate); }
+            if let Some(sub) = subst { sub.apply(& mut predicate); }
             ret_elems.push( ClauseElem { positive: x.positive, predicate } );
         }
 
         Self { elems: ret_elems }
     }
 
+    pub fn new_from_two(
+        left: &Self, 
+        right: &Self, 
+        index_left_delete: HashSet<usize>,  
+        index_right_delete: HashSet<usize>, 
+        subst: & Option<Substitution<N>>
+    ) -> Self
+    {
+        let mut left = left.new_from_this(index_left_delete, subst);       
+        let mut right = right.new_from_this(index_right_delete, subst);
+        left.elems.append(&mut right.elems);
+        Self { elems: left.elems }       
+    }
+
 }
 
 impl<N:Name> ClauseElem<N>{
-    pub fn gluing<F>(left: &Self, right: &Self, printer: F) -> Option<Substitution<N>> 
+    pub fn most_comon_unifier<F>(left: &Self, right: &Self, printer: F) -> Option<Substitution<N>> 
     where F: Fn(&Term<N>, &Term<N>)
     {
         //TODO: need deep-copy  ?! (think yes)
@@ -164,14 +181,30 @@ impl<N:Name> OneClause<N>{
     {
         let left = self.elems.get(index_pair.0).unwrap();
         let right = self.elems.get(index_pair.1).unwrap();
-        if let Some(subst) = ClauseElem::gluing(left, right, printer) {
+        if let Some(subst) = ClauseElem::most_comon_unifier(left, right, printer) {
             let mut delete = HashSet::new();
             // we need to delete only one : {A or A = A} 
             //                     and not: { A or A = empty }   <-- it not true!
             // so first - stay
             //delete.insert(index_pair.0); 
             delete.insert(index_pair.1);
-            Some(self.new_from_this(delete, Some(subst)))
+            Some(self.new_from_this(delete, &Some(subst)))
+        } else {
+            None
+        }
+    }
+
+    pub fn resolvent<F>(left: &Self, right: &Self, index_lr_pair:(usize, usize), printer: F) -> Option<OneClause<N>> 
+    where F: Fn(&Term<N>, &Term<N>)
+    {
+        let left_elem = left.elems.get(index_lr_pair.0).unwrap();
+        let right_elem = right.elems.get(index_lr_pair.1).unwrap();
+        if let Some(subst) = ClauseElem::most_comon_unifier(left_elem, right_elem, printer) {
+            let mut del_l = HashSet::new();
+            let mut del_r = HashSet::new();
+            del_l.insert(index_lr_pair.0); 
+            del_r.insert(index_lr_pair.1);
+            Some(Self::new_from_two(left, right, del_l, del_r, &Some(subst)))
         } else {
             None
         }

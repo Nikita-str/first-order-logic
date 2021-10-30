@@ -329,6 +329,11 @@ mod parse_str_test{
                 println!("make all possible gluing: ");
                 cs.made_all_gluing();
                 println!("{}", cs);
+                
+                println!("");
+                println!("try resolvent (no more than 25): ");
+                cs.made_all_resolvent(Some(25));
+                println!("{}", cs);
             }
         }
     }

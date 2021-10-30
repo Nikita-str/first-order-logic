@@ -36,7 +36,7 @@ impl<N: Name> PredicateExpr<N>{
             left: Term<N0>,
             right: Term<N0>,
         }
-        let lr_is_ok = |l: &Term<_>, r: &Term<_>| l.is_var() && r.without_var() || l.is_var() && r.is_var();
+        let lr_is_ok = |l: &Term<_>, r: &Term<_>| l.is_var() && r.without_var() /* || l.is_var() && r.is_var() */;
         //let line_is_ok = |line: &Line<_>| line.ok || lr_is_ok(&line.left, &line.right);
 
         struct Lines<N0: Name>{
@@ -52,9 +52,21 @@ impl<N: Name> PredicateExpr<N>{
         };
         let lines_add = |lines: &mut Lines<_>, left, right| {
             lines.sz += 1;
-            let ok = lr_is_ok(&left, &right);
+
+            let mut ok = lr_is_ok(&left, &right);
+            
+            let mut reverse = false;
+            // TODO: TOO EXPANSIVE:
+            if left.is_var() && right.is_var() {
+                let l_is_unique = lines.lines.iter().all(|x|(!x.left.contain(&left)) && (!x.right.contain(&left)) ); 
+                let r_is_unique = lines.lines.iter().all(|x|(!x.left.contain(&right)) && (!x.right.contain(&right)) ); 
+                if l_is_unique && r_is_unique { ok = true; }
+                else if r_is_unique { reverse = true; }   
+            }
             if ok { lines.ok += 1; }
-            lines.lines.push_back(Line{ok, left, right});
+
+            let new_add_line = if !reverse { Line{ok, left, right} } else { Line{ok, right, left} };
+            lines.lines.push_back(new_add_line);
         };
 
         let mut lines = Lines{sz: 0, ok: 0, lines: LinkedList::new() };
@@ -70,7 +82,7 @@ impl<N: Name> PredicateExpr<N>{
             let left = cur_line.left; 
             let right = cur_line.right; 
 
-            //println!("L:{}   R:{}", left, right);
+            println!("L:{}   R:{}", left, right);
             //println!("TODO:DEL: {:?}", all_gl);
             printer(&left, &right);
 
@@ -108,6 +120,7 @@ impl<N: Name> PredicateExpr<N>{
                 continue
             }
             else if left.is_var() && right.is_var(){
+                if *left.get_var() == *right.get_var() { continue } // X = X
                 let mut subst = Substitution::new_empty();
                 subst.add_new_rule(left.get_var().clone(), right.clone());
                 lines_subst(&mut lines, &subst);
@@ -118,8 +131,13 @@ impl<N: Name> PredicateExpr<N>{
             } else { panic!("this case must not exist!") }
         }
 
+        println!("TODO:DEL: END MCU");
+        println!("");
+        println!("");
+
         let mut subst = Substitution::new_empty();
         for line in lines.lines {
+            //println!("TODO:DEL: L:{} R:{}", line.left, line.right);
             subst.add_new_rule(line.left.get_var().clone(), line.right)
         }
 

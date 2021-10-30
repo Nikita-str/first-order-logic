@@ -1,4 +1,4 @@
-use std::{collections::{HashSet, LinkedList}, fmt::Formatter, hash::Hash};
+use std::{collections::{HashMap, HashSet, LinkedList}, fmt::Formatter, hash::Hash};
 use crate::{common::{deep_copy::DeepCopy, ok_parse::display_predicate_helper}, logic::{expr::Expr, operations::BinaryOperations}};
 use super::{name::Name, name_holder::NameHolder, one_clause::OneClause};
 
@@ -54,6 +54,13 @@ impl<N:Name, T:Hash + Eq> ClauseSystem<N, T>{
 }
 
 
+
+pub enum ResolventResult{
+    EmptyClauseDerivable,
+    TooManyIterations,
+    EmptyClauseNotDerivable,
+}
+
 impl<N:Name, T:Hash + Eq> ClauseSystem<N, T>{
     fn get_new_var_index(&self) -> usize { self.system.len() + 1 }
 
@@ -64,6 +71,7 @@ impl<N:Name, T:Hash + Eq> ClauseSystem<N, T>{
         self.system.len() - 1
     }
 
+    /// always ended
     pub fn made_all_gluing(&mut self){
         let start_indexes: Vec<_> = self.system.iter().enumerate().map(|(ind, _)|ind).collect();
         let mut need_gluing = LinkedList::new();
@@ -75,6 +83,55 @@ impl<N:Name, T:Hash + Eq> ClauseSystem<N, T>{
                 if new_lines.len() > 0 { need_gluing.push_back(new_lines); }
             }
         }
+    }
+
+    /// it may be infinity looped => use max_iteration
+    pub fn made_all_resolvent(&mut self, max_iteration: Option<usize>) -> ResolventResult{
+        if self.system.len() < 2 { return ResolventResult::EmptyClauseNotDerivable } // ? or is_empty ? 
+        
+        let mut cur_index = self.system.len() - 1;
+        let mut second_index = self.system.len() - 2;
+
+        let mut rest_iter = max_iteration.unwrap_or(1);
+        while rest_iter > 0 {
+            let exception = self.action_info.get_resolv((second_index, cur_index));
+            let left = self.system.get(second_index).unwrap();
+            let right = self.system.get(cur_index).unwrap();
+            let indexes = OneClause::get_potential_contrary_pairs(left, right, exception);
+
+            let mut tried = 0;
+            let mut new_clause = None;
+            
+            'contrary_pair: 
+            for index_lr_pair in &indexes {
+                tried = tried + 1;
+                let x = OneClause::resolvent(left, right, *index_lr_pair, |_,_|{});
+                if x.is_some() { new_clause = x; break'contrary_pair } 
+            }
+
+            // add all that we checked (we can checked not all)
+            'add_tried:
+            for (ind, try_pair) in indexes.iter().enumerate(){
+                if ind == tried { break'add_tried }
+                self.action_info.add_resolv((second_index, cur_index), *try_pair)
+            }
+
+            if let Some(clause) = new_clause{
+                cur_index = self.add_in_system(clause);
+                self.made_gluing_only_for_line(cur_index);
+                second_index = cur_index - 1;
+            } else {
+                if second_index == 0 {
+                    if cur_index == 1 { return ResolventResult::EmptyClauseNotDerivable }
+                    cur_index = cur_index - 1; 
+                } else {
+                    second_index = second_index - 1;
+                }
+            }
+
+            if max_iteration.is_some() { rest_iter = rest_iter - 1; }
+        }
+        return ResolventResult::EmptyClauseNotDerivable 
     }
 
     /// return all line index that was created while gluing
@@ -100,16 +157,41 @@ struct ActionInfo{
     /// which gluing was already try: 
     /// `key: (clause index + (left, right))`. 
     /// where left & right - pair of index for gluing (left < right)
-    try_gluing: HashSet<(usize, (usize, usize))>
+    try_gluing: HashSet<(usize, (usize, usize))>,
+
+    /// `key : (clause_index, clause_index)` `values: aready checked pair` 
+    try_resolv: HashMap<(usize, usize), HashSet<(usize, usize)>>
 }
 impl ActionInfo{
-    fn new() -> Self { Self{ try_gluing: HashSet::new() } }
+    fn new() -> Self { Self{ try_gluing: HashSet::new(), try_resolv: HashMap::new() } }
     fn is_already_glued(&self, clause_index: usize, gluing_pair: (usize, usize)) -> bool {
         self.try_gluing.contains(&(clause_index, gluing_pair))
     }
     fn add_glued(&mut self, clause_index: usize, gluing_pair: (usize, usize)) {
         self.try_gluing.insert((clause_index, gluing_pair));
     }
+
+    fn get_resolv(&mut self, clause_pair_index: (usize, usize)) -> &HashSet<(usize, usize)>{
+        if clause_pair_index.0 >= clause_pair_index.1 { panic!("get it normal way!") }
+        if self.try_resolv.get(&clause_pair_index).is_none() { 
+            let new_set = HashSet::new();       
+            self.try_resolv.insert(clause_pair_index, new_set);
+        } 
+        self.try_resolv.get(&clause_pair_index).unwrap()   
+    }
+
+    fn add_resolv(&mut self, clause_pair_index: (usize, usize), resolv_pair: (usize, usize)) {
+        if clause_pair_index.0 >= clause_pair_index.1 { panic!("get it normal way!") }
+        if let Some(set) = self.try_resolv.get_mut(&clause_pair_index) {
+            set.insert(resolv_pair);
+        } else {
+            let mut clause_already = HashSet::new();
+            clause_already.insert(resolv_pair);
+            self.try_resolv.insert(clause_pair_index, clause_already);
+            panic!("we not must be here, we create this on get_resolv")
+        }
+    }
+
 }
 
 
