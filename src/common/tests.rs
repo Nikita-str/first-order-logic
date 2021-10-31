@@ -2,7 +2,6 @@
 #[cfg(test)]
 mod parse_str_test{
     use crate::common::clause_system::ClauseSystem;
-    use crate::common::ok_parse;
     use crate::common::{name::StdName, parse, ok_parse::OkParse};
     use crate::common::parse_str::ParseStr;
     use crate::logic::expr::Expr;
