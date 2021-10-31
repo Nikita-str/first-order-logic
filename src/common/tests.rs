@@ -313,7 +313,11 @@ mod parse_str_test{
         //let ps = ParseStr::new("P(a)");
         //let ps = ParseStr::new("P(y, f(x)) & (Q(y) | !Q(z) | !P(y, f(z)) | !Q(w)) & Q(b) & !Q(z)");
         //let ps = ParseStr::new("(Q(a) or !Q(a)) & R(b) & !Q(a) & P(y, f(x)) & Q(b) & (Q(y) | !Q(z) | !P(y, f(z))) & R(c)");
-        let ps = ParseStr::new("(P(a) or R(b)) and (R(x) or not R(y) or P(c)) and Q(a) and not Q(x) and (P(c) or not P(x))");
+        //let ps = ParseStr::new("(P(a) or R(b)) and (R(x) or not R(y) or P(c)) and Q(a) and not Q(x) and (P(c) or not P(x))");
+
+        //cur init example: "any x (P(x) --> exist y R(x, f(y))) --> (exist x !P(x) or for_all x exist z R(x, z))"
+        // it eq: 
+        let ps = ParseStr::new("(not P(x) or R(x, f(f_1(x_1, x))) ) & P(x_1) & !R(c, z)");
         let expr = parse::parse::<StdName, _, _>(&ruleset, &mut ps.into_iter());
         match expr {
             Err(err) => println!("NONE :(  [err={:?}]", err),
@@ -333,8 +337,8 @@ mod parse_str_test{
                 println!("{}", cs);
                 
                 println!("");
-                println!("try resolvent (no more than 25): ");
-                cs.made_all_resolvent(Some(25));
+                println!("try resolvent (no more than 15): ");
+                cs.made_all_resolvent(Some(15));
                 println!("{}", cs);
             }
         }

@@ -114,7 +114,7 @@ impl<N:Name, T:Hash + Eq + std::fmt::Display> ClauseSystem<N, T>{
 
         while rest_iter > 0 {
             println!("TODO:DEL: start={}   cur={}  rest={}", start_index, cur_index, rest_iter); // TODO:DEL!
-            // println!("TODO:DEL: {}", self); // TODO:DEL!
+            println!("TODO:DEL: {}", self); // TODO:DEL!
             let exception = self.action_info.get_resolv((start_index, cur_index));
             let left = self.system.get(start_index).unwrap();
             let right = self.system.get(cur_index).unwrap();

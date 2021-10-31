@@ -35,7 +35,7 @@ impl<N: Name> PredicateExpr<N>{
             ok: bool,
             left: Term<N0>,
             right: Term<N0>,
-            is_var_var: bool,
+            left_is_var: bool,
         }
         let lr_is_ok = |l: &Term<_>, r: &Term<_>| l.is_var() && r.without_var() /* || l.is_var() && r.is_var() */;
         //let line_is_ok = |line: &Line<_>| line.ok || lr_is_ok(&line.left, &line.right);
@@ -44,7 +44,7 @@ impl<N: Name> PredicateExpr<N>{
             sz: usize,
             ok: usize,
             lines: LinkedList<Line<N0>>,
-            var_var: usize,
+            left_is_var_amount: usize,
         }
         let lines_subst = |lines: &mut Lines<_>, subst: &Substitution<_>|{
             for line in (&mut lines.lines).into_iter() {
@@ -69,28 +69,28 @@ impl<N: Name> PredicateExpr<N>{
             */
             if ok { lines.ok += 1; }
 
-            let is_var_var = left.is_var() && right.is_var();
-            if is_var_var { lines.var_var += 1; }
+            let left_is_var = left.is_var();// && right.is_var();
+            if left_is_var { lines.left_is_var_amount += 1; }
 
-            let new_add_line = if !reverse { Line{ok, left, right, is_var_var} } else { Line{ok, right, left, is_var_var} };
+            let new_add_line = if !reverse { Line{ok, left, right, left_is_var} } else { Line{ok, right, left, left_is_var} };
             lines.lines.push_back(new_add_line);
         };
 
-        let mut lines = Lines{sz: 0, ok: 0, lines: LinkedList::new(), var_var: 0 };
+        let mut lines = Lines{sz: 0, ok: 0, lines: LinkedList::new(), left_is_var_amount: 0 };
         for (t1, t2) in (& p1.params).into_iter().zip((& p2.params).into_iter()) {
-            lines.lines.push_back(Line{ ok: false, left: Term::new_from_other(t1), right: Term::new_from_other(t2), is_var_var: false });
+            lines.lines.push_back(Line{ ok: false, left: Term::new_from_other(t1), right: Term::new_from_other(t2), left_is_var: false });
             lines.sz += 1;
         }
 
-        while (lines.ok + lines.var_var) != lines.sz {
+        while (lines.ok + lines.left_is_var_amount) != lines.sz {
             lines.sz-= 1;
             let cur_line = lines.lines.pop_front().unwrap();
             if cur_line.ok { lines.ok -= 1 }
-            if cur_line.is_var_var { lines.var_var -= 1 }
+            if cur_line.left_is_var { lines.left_is_var_amount -= 1 }
             let left = cur_line.left; 
             let right = cur_line.right; 
 
-            //println!("L:{}   R:{}", left, right);
+            println!("L:{}   R:{}", left, right);
             //println!("TODO:DEL: {:?}", all_gl);
             printer(&left, &right);
 

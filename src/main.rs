@@ -1,8 +1,10 @@
 use std::io;
+use first_order_logic::common::clause_system::ClauseSystem;
 use first_order_logic::common::name::StdName;
 use first_order_logic::common::parse_str::ParseStr;
 use first_order_logic::common::parse;
 use first_order_logic::logic::operations::UnaryOperations;
+use first_order_logic::logic::substit::DisplaySubst;
 
 
 fn main(){
@@ -56,6 +58,31 @@ fn main(){
             println!("transform to cnf: ");
             ok.get_mut_expr().to_cnf();
             println!("expr:  {}", ok);
+
+            println!("");
+            let subst = ok.exist_quant_transform();
+            println!("for deleting exist quantor we use substitution: {}", DisplaySubst{nh: ok.get_name_holder(), substs: &subst} );
+            println!("now our expr: {}", ok);
+            
+            println!("");
+            let (expr, nh) = ok.disassemble();
+            let mut cs = ClauseSystem::new(&expr, nh);
+            println!("clause system: ");
+            println!("{}", cs);
+
+            println!("add index for each clause: ");
+            cs.set_unique_var_index();
+            println!("{}", cs);
+
+            println!("");
+            println!("make all possible gluing: ");
+            cs.made_all_gluing();
+            println!("{}", cs);
+
+            println!("");
+            println!("try resolvent (no more than 15): ");
+            cs.made_all_resolvent(Some(15));
+            println!("{}", cs);
         }
     }
 }
