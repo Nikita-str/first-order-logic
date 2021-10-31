@@ -1,14 +1,104 @@
 use std::io;
+use std::sync::atomic::AtomicBool;
 use first_order_logic::common::clause_system::ClauseSystem;
 use first_order_logic::common::name::StdName;
+use first_order_logic::common::ok_parse::OkParse;
 use first_order_logic::common::parse_str::ParseStr;
 use first_order_logic::common::parse;
+use first_order_logic::logic::expr::Expr;
 use first_order_logic::logic::operations::UnaryOperations;
-use first_order_logic::logic::substit::DisplaySubst;
-
+use first_order_logic::logic::predicate_expr::PredicateExpr;
+use first_order_logic::logic::substit::{DisplaySubst, SubstitutionApply};
 
 fn main(){
     let std_in = io::stdin();
+    let mut std_info = StdInfo{ max_tries: STD_INFO_INIT_MAX_TRIES };
+    loop {
+        match get_cmd(&std_in) {
+            CMD::Help => help(), 
+            CMD::Std => std(&std_in, &std_info),
+            CMD::NewMaxResolvTry(x) => std_info.max_tries = x,
+            
+            CMD::MCU => if !mcu(&std_in) { break },
+
+            CMD::ReadError | CMD::Exit => break,
+            CMD::WrongCmd => {},
+        }
+        println!("");
+    }
+}
+
+#[derive(PartialEq, Eq)]
+enum CMD {
+    WrongCmd,
+    ReadError,
+    Help,
+    Exit,
+
+    MCU,
+    Std,
+    NewMaxResolvTry(usize),
+}
+
+fn get_cmd(std_in: &io::Stdin) -> CMD {
+    static FIRST: AtomicBool = AtomicBool::new(false);
+    print!("CMD ");
+    if !FIRST.load(std::sync::atomic::Ordering::Relaxed) { print!("[for help: `help`]") }
+    print!(":  ");
+    if !flush() { return CMD::ReadError }
+    let mut input_str = String::new();
+    if let Err(_) = std_in.read_line(&mut input_str) { 
+        println!("failed to read line!");
+        return CMD::ReadError
+    }
+
+    let mut x = input_str.trim().split(" ");
+    let cmd = if let Some(cmd) = x.next() { cmd } else { 
+        println!("empty cmd"); 
+        FIRST.store(true, std::sync::atomic::Ordering::Relaxed);
+        return CMD::WrongCmd
+    };
+
+    let cmd = match cmd {
+        "h" | "hell" | "help" => CMD::Help, 
+        "e" | "exit" => CMD::Exit, 
+        "mcu" => CMD::MCU,
+        "std" => CMD::Std,
+        "set-mrt" | "max-res-try" => {
+            let len = x.next();
+            if let Some(len) = len {
+                if let Ok(len) = len.parse() {
+                    CMD::NewMaxResolvTry(len)
+                } else {
+                    println!("parameter must be num, but was: `{}`", len);
+                    CMD::WrongCmd 
+                }
+            } else {
+                println!("here must stay num parameter - amount of resolving try"); 
+                CMD::WrongCmd 
+            }
+        },
+        _ => {
+            println!("wrong cmd: `{}`", cmd); 
+            CMD::WrongCmd
+        }
+    };
+    FIRST.store(true, std::sync::atomic::Ordering::Relaxed);
+    cmd
+}
+
+fn help(){
+    println!("[h | help]: print this msg");
+    println!("[e | exit]: exit from the program");
+    println!("[mcu]: most common unifier for two predicate");
+    println!("       | currently it not print each action,");
+    println!("       | just final result");
+    println!("[std]: step-by-step algorithm for getting empty clause");
+    println!("       | currently end step (resolution) work with max-iter");
+    println!("[max-res-try][x:int]: set amount of tries in resolution method to x");
+}
+
+fn std(std_in: &io::Stdin, info: &StdInfo){
     let ruleset = ParseStr::create_std_ruleset();
     let mut input_str = String::new();
     println!("helpful symbs: ∃∃∃ ∀∀∀ ¬¬¬ →→→ ∧∧∧ ∨∨∨");
@@ -21,7 +111,7 @@ fn main(){
     let expr = parse::parse::<StdName, _, _>(&ruleset, &mut ps.into_iter());
     println!();
     match expr {
-        Err(_) => println!("invalid input"),
+        Err(err) => println!("invalid input {:?}", err),
         Ok(ok) => {
             println!("expr:  {}", ok);
             let warns = ok.get_name_holder().get_waring_vars();
@@ -80,85 +170,84 @@ fn main(){
             println!("{}", cs);
 
             println!("");
-            println!("try resolvent (no more than 15): ");
-            cs.made_all_resolvent(Some(15));
+            println!("try resolvent (no more than {}): ", info.max_tries);
+            cs.made_all_resolvent(Some(info.max_tries));
             println!("{}", cs);
         }
     }
 }
 
-
-/*
-use first_order_logic::{ logic::{term_type::TermType, predicate_expr::PredicateExpr, terms::{ConstTerm, FuncTerm, Term, VarTerm}}};
-
-#[allow(non_snake_case)]
-fn main() {
-    let t_c = ConstTerm{ name: StdName{ name_type: TermType::Const, name: 1, index: 0 } };
-    let t_X = VarTerm{ name: StdName{ name_type: TermType::Var, name: 1, index: 0 } };
-    let t_Y = VarTerm{ name: StdName{ name_type: TermType::Var, name: 2, index: 0 } };
-
-    let t_c = Term::new_const(t_c);
-    let t_X = Term::new_var(t_X);
-    let t_Y = Term::new_var(t_Y);
-    let t_f = Term::new_func(FuncTerm{ 
-        name: StdName{ name_type: TermType::Func, name: 1, index: 0 },
-        params: vec![t_X.clone()],
-    });
-
-    let P_left = PredicateExpr{ 
-        name: StdName{ name_type: TermType::Pred, name: 1, index: 0 },
-        params: vec![t_c.clone(), t_X.clone(), t_f.clone()], 
-    };
-
-    let P_right = PredicateExpr{ 
-        name: StdName{ name_type: TermType::Pred, name: 1, index: 0 },
-        params: vec![t_c.clone(), t_Y.clone(), t_Y.clone()], 
-    };
-
-    if let Some(unif) =  PredicateExpr::most_comon_unifier(&P_left, &P_right){
-        println!("UNIF: {}", unif)
-    } else {
-        println!("N0 :(")
+fn flush() -> bool {
+    if let Err(_) = io::Write::flush(&mut io::stdout()) {
+        println!("failed to print line!");
+        return false        
     }
-
-    println!("");
-
-    let t_a = Term::new_const(ConstTerm{ name: StdName{ name_type: TermType::Const, name: 1, index: 0 } });
-    let t_b = Term::new_const(ConstTerm{ name: StdName{ name_type: TermType::Const, name: 2, index: 0 } });
-    let t_X = Term::new_var(VarTerm{ name: StdName{ name_type: TermType::Var, name: 1, index: 0 } });
-    let t_Y = Term::new_var(VarTerm{ name: StdName{ name_type: TermType::Var, name: 2, index: 0 } });
-    let t_Z = Term::new_var(VarTerm{ name: StdName{ name_type: TermType::Var, name: 3, index: 0 } });
-    let t_h = Term::new_func(FuncTerm{ 
-        name: StdName{ name_type: TermType::Func, name: 1, index: 0 },
-        params: vec![t_X.clone()],
-    });
-    let t_g = Term::new_func(FuncTerm{ 
-        name: StdName{ name_type: TermType::Func, name: 2, index: 0 },
-        params: vec![t_a.clone()],
-    });
-    let t_f1 = Term::new_func(FuncTerm{ 
-        name: StdName{ name_type: TermType::Func, name: 3, index: 0 },
-        params: vec![t_X.clone(), t_b.clone(), t_Z.clone()],
-    });
-    let t_f2 = Term::new_func(FuncTerm{ 
-        name: StdName{ name_type: TermType::Func, name: 3, index: 0 },
-        params: vec![t_g.clone(), t_Y.clone(), t_Z.clone()],
-    });
-    
-    let P_left = PredicateExpr{ 
-        name: StdName{ name_type: TermType::Pred, name: 1, index: 0 },
-        params: vec![t_Z.clone(), t_f1.clone()], 
-    };
-
-    let P_right = PredicateExpr{ 
-        name: StdName{ name_type: TermType::Pred, name: 1, index: 0 },
-        params: vec![t_h.clone(), t_f2.clone()], 
-    };
-
-    if let Some(unif) =  PredicateExpr::most_comon_unifier(&P_left, &P_right){
-        println!("UNIF: {}", unif)
-    } else {
-        println!("N0 :(")
-    }
+    return true
 }
-// */
+
+const STD_INFO_INIT_MAX_TRIES: usize = 12;
+struct StdInfo{ max_tries: usize, }
+
+fn mcu(std_in: &io::Stdin) -> bool {
+    print!("write left predicate:    ");
+    if !flush() { return false } 
+    let mut left = String::new();
+    if let Err(_) = std_in.read_line(&mut left) { 
+        println!("failed to read line!");
+        return false
+    } 
+    print!("write right predicate:   ");
+    if !flush() { return false } 
+    let mut right = String::new();
+    if let Err(_) = std_in.read_line(&mut right) { 
+        println!("failed to read line!");
+        return false
+    } 
+
+    mcu_inner(left.trim(), right.trim());
+    true
+}
+
+fn mcu_inner(str_predicate_a: &str, str_predicate_b: &str){
+    let ruleset = ParseStr::create_std_ruleset();
+    let expr_str = "".to_owned() + str_predicate_a + " | " + str_predicate_b;
+    let ps = ParseStr::new(&expr_str);
+    let expr = parse::parse::<StdName, _, _>(&ruleset, &mut ps.into_iter());
+    if let Err(err) = expr {
+        println!("invalid input {:?}", err);
+        return
+    } 
+    let mut expr = expr.unwrap();
+    //println!("expr before subst: {}", expr);
+    let subst = match expr.get_expr() { 
+        Expr::BinaryOp(bop) 
+            if bop.borrow().get_lexpr().is_predicate() 
+            && bop.borrow().get_rexpr().is_predicate() => 
+                PredicateExpr::most_comon_unifier(
+                    &bop.borrow().get_lexpr().get_expr_predicate(), 
+                    &bop.borrow().get_rexpr().get_expr_predicate(), 
+                    |_,_|{}
+                ),
+        _ => {
+            println!("invalid input! both must be just predicate ( `P(x, f(y, c), ..)` )");
+            return        
+        }
+    };
+    if subst.is_none() { println!("subst no exist"); }
+    else { 
+        let subst = subst.unwrap();
+        println!("mcu: {}", DisplaySubst{ nh: &expr.get_name_holder(), substs: &subst});
+        subst.apply(expr.get_mut_expr());
+        let (expr, nh) = expr.disassemble(); 
+        match expr {
+            Expr::BinaryOp(bop) => {
+                let borrow = bop.borrow();
+                let left = borrow.get_lexpr();    
+                let ok_parse = OkParse::new(left.clone(), nh);
+                println!("expr after subst (second the same): {}", ok_parse);
+            }
+            _ => panic!("never here, it 100% binary op"),
+        }
+    };
+    println!("");
+}

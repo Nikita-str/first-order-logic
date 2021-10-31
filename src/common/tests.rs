@@ -399,7 +399,7 @@ mod parse_str_test{
         };
         if subst.is_none() { 
             assert!(!await_exist, "awaited existing of substitution");
-            println!("subst is empty (ok)") 
+            println!("subst no exist (ok)") 
         }
         else { 
             let subst = subst.unwrap();
