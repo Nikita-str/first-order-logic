@@ -54,7 +54,7 @@ impl<N:Name, T:Hash + Eq> ClauseSystem<N, T>{
 }
 
 
-
+#[derive(PartialEq, Eq)]
 pub enum ResolventResult{
     EmptyClauseDerivable,
     TooManyIterations,
@@ -90,16 +90,28 @@ impl<N:Name, T:Hash + Eq + std::fmt::Display> ClauseSystem<N, T>{
         }
     }
 
-    /// it may be infinity looped => use max_iteration
     pub fn made_all_resolvent(&mut self, max_iteration: Option<usize>) -> ResolventResult{
-        if self.system.len() < 2 { return ResolventResult::EmptyClauseNotDerivable } // ? or is_empty ? 
-        
-        let initial_len = self.system.len() - 1;
+        if self.system.len() < 2 { return ResolventResult::EmptyClauseNotDerivable } // ? or < 1 ? 
+        if max_iteration.is_none() { panic!("now it will not work, sorry :|") }
+        let max_iteration = max_iteration.unwrap();
+        let init_len = self.system.len();
+        let mut exist_too_many = false;
+        for cur_index in 0..init_len {
+            let res = self.made_all_resolvent_helper(max_iteration, init_len, cur_index);
+            if res == ResolventResult::EmptyClauseDerivable { return res }
+            else if res == ResolventResult::TooManyIterations { exist_too_many = true }
+        }
+        if exist_too_many { ResolventResult::TooManyIterations } else { ResolventResult::TooManyIterations }
+    }
 
-        let mut cur_index = self.system.len() - 1;
+    /// it may be infinity looped => use max_iteration
+    fn made_all_resolvent_helper(&mut self, max_iteration: usize, initial_len: usize, mut cur_index: usize) -> ResolventResult{
+        let except_index = cur_index;
+        let mut rest_iter = max_iteration;
+
         let mut start_index = 0;
+        if start_index == except_index { start_index += 1; }
 
-        let mut rest_iter = max_iteration.unwrap_or(1);
         while rest_iter > 0 {
             println!("TODO:DEL: start={}   cur={}  rest={}", start_index, cur_index, rest_iter); // TODO:DEL!
             // println!("TODO:DEL: {}", self); // TODO:DEL!
@@ -131,23 +143,13 @@ impl<N:Name, T:Hash + Eq + std::fmt::Display> ClauseSystem<N, T>{
                 let start_gluing = self.made_gluing_only_for_line(cur_index);
                 self.made_gluing_this_and_created(start_gluing);
                 cur_index = self.system.len() - 1;
-                start_index += 1;
-                if start_index == initial_len { start_index = 0 } 
-            } else {
-                start_index += 1;
-                if start_index == initial_len { start_index = 0 }
-                /* 
-                if start_index == (cur_index - 1) {
-                    if cur_index == 1 { return ResolventResult::EmptyClauseNotDerivable }
-                    cur_index = cur_index - 1; 
-                    start_index = 0;
-                } else {
-                    start_index += 1;
-                }
-                */
             }
+            start_index += 1;
+            if start_index == except_index { start_index += 1; }
+            if start_index >= initial_len { start_index = 0 } 
+            if start_index == except_index { start_index += 1; }
 
-            if max_iteration.is_some() { rest_iter -= 1; }
+            rest_iter -= 1;
         }
         return ResolventResult::EmptyClauseNotDerivable 
     }
@@ -190,7 +192,7 @@ impl ActionInfo{
     }
 
     fn get_resolv(&mut self, clause_pair_index: (usize, usize)) -> &HashSet<(usize, usize)>{
-        if clause_pair_index.0 >= clause_pair_index.1 { panic!("get it normal way!") }
+        //if clause_pair_index.0 >= clause_pair_index.1 { panic!("get it normal way!") }
         if self.try_resolv.get(&clause_pair_index).is_none() { 
             let new_set = HashSet::new();       
             self.try_resolv.insert(clause_pair_index, new_set);
@@ -199,7 +201,7 @@ impl ActionInfo{
     }
 
     fn add_resolv(&mut self, clause_pair_index: (usize, usize), resolv_pair: (usize, usize)) {
-        if clause_pair_index.0 >= clause_pair_index.1 { panic!("get it normal way!") }
+        //if clause_pair_index.0 >= clause_pair_index.1 { panic!("get it normal way!") }
         if let Some(set) = self.try_resolv.get_mut(&clause_pair_index) {
             set.insert(resolv_pair);
         } else {

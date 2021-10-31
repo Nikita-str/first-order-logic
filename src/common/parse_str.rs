@@ -57,7 +57,7 @@ impl<'a> ParseStr<'a>{
         add_exact_rules(AllSymbs::Syntax(SyntaxSymbs::OpenBr), vec!["("]);
         add_exact_rules(AllSymbs::Syntax(SyntaxSymbs::CloseBr), vec![")"]);
 
-        add_exact_rules(AllSymbs::Op(Operations::Unary(UnaryOperations::Not)), vec!["!", "¬"]);
+        add_exact_rules(AllSymbs::Op(Operations::Unary(UnaryOperations::Not)), vec!["!", "¬", "not"]);
 
         add_exact_rules(AllSymbs::Op(Operations::Binary(BinaryOperations::Impl)), vec!["→", "->", "-->", "--->"]);
         add_exact_rules(AllSymbs::Op(Operations::Binary(BinaryOperations::And)), vec!["∧", "&", "&&", "and"]);
