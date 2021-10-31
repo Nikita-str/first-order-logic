@@ -92,7 +92,7 @@ impl<N:Name, T:Hash + Eq + std::fmt::Display> ClauseSystem<N, T>{
 
     pub fn made_all_resolvent(&mut self, max_iteration: Option<usize>) -> ResolventResult{
         if self.system.len() < 2 { return ResolventResult::EmptyClauseNotDerivable } // ? or < 1 ? 
-        if max_iteration.is_none() { panic!("now it will not work, sorry :|") }
+        if max_iteration.is_none() { panic!("now it not work, sorry :|") }
         let max_iteration = max_iteration.unwrap();
         let init_len = self.system.len();
         let mut exist_too_many = false;

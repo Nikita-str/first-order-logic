@@ -2,10 +2,12 @@
 #[cfg(test)]
 mod parse_str_test{
     use crate::common::clause_system::ClauseSystem;
+    use crate::common::ok_parse;
     use crate::common::{name::StdName, parse, ok_parse::OkParse};
     use crate::common::parse_str::ParseStr;
     use crate::logic::expr::Expr;
-    use crate::logic::substit::DisplaySubst;
+    use crate::logic::predicate_expr::PredicateExpr;
+    use crate::logic::substit::{DisplaySubst, SubstitutionApply};
 
     fn test_help(ps: ParseStr, expects: Vec<&str>){
         let mut iter = ps.into_iter(); 
@@ -345,6 +347,7 @@ mod parse_str_test{
     }
 
 
+    /// not actual (here bug work, but when need we use deep_copy)
     #[test]
     fn show_one_bug_test(){
         let ruleset = ParseStr::create_std_ruleset();
@@ -378,4 +381,87 @@ mod parse_str_test{
             }
         }
     }
+
+    fn get_mcu(str_predicate_a: &str, str_predicate_b: &str, await_exist: bool){
+        let ruleset = ParseStr::create_std_ruleset();
+        let expr_str = "".to_owned() + str_predicate_a + " | " + str_predicate_b;
+        let ps = ParseStr::new(&expr_str);
+        let expr = parse::parse::<StdName, _, _>(&ruleset, &mut ps.into_iter());
+        let mut expr = expr.unwrap();
+        println!("expr before subst: {}", expr);
+        let subst = match expr.get_expr() { 
+            Expr::BinaryOp(bop) => 
+                PredicateExpr::most_comon_unifier(
+                    &bop.borrow().get_lexpr().get_expr_predicate(), 
+                    &bop.borrow().get_rexpr().get_expr_predicate(), 
+                    |_,_|{}
+                ),
+            _ => panic!("give two predicate, please"),
+        };
+        if subst.is_none() { 
+            assert!(!await_exist, "awaited existing of substitution");
+            println!("subst is empty (ok)") 
+        }
+        else { 
+            let subst = subst.unwrap();
+            assert!(await_exist, "awaited not existing of substitution");
+            println!("mcu: {}", DisplaySubst{ nh: &expr.get_name_holder(), substs: &subst});
+            subst.apply(expr.get_mut_expr());
+            println!("expr after subst: {}", expr);
+            let (expr, nh) = expr.disassemble(); 
+            match expr {
+                Expr::BinaryOp(bop) => {
+                    let borrow = bop.borrow();
+                    let left = borrow.get_lexpr();    
+                    let right = borrow.get_lexpr();
+                    let ok_parse = OkParse::new(left.clone(), nh);
+                    let left_str = format!("{}", ok_parse);
+                    let ok_parse = OkParse::new(right.clone(), ok_parse.disassemble().1);
+                    let right_str = format!("{}", ok_parse);
+                    //println!("l:{}  r:{}", left_str, right_str);
+                    assert_eq!(left_str, right_str, "after subst they must eq");
+                }
+                _ => panic!("never here, it 100% binary op"),
+            }
+        };
+        println!("");
+    }
+
+    #[test]
+    fn check_mcu(){
+        get_mcu("Q()", "P()", false);
+        get_mcu("Q(x)", "P(a)", false);
+        get_mcu("Q(f(x, x))", "P(f(x, x))", false);
+
+        get_mcu("P(f(x, x))", "P(f(x, x))", true);
+        get_mcu("P(x, x)", "P(x, x)", true);
+        get_mcu("P(x, x)", "P(a, b)", false);
+        
+        get_mcu("P(a)", "P(b)", false);
+        get_mcu("P(a)", "P(z)", true);
+        get_mcu("P(f(a, b))", "P(f(z, b))", true);
+        get_mcu("P(f(a, b))", "P(f(z, a))", false);
+        get_mcu("P(f(a, b))", "P(f(z, x))", true);
+        get_mcu("P(f(a, x))", "P(f(z, x))", true);
+        get_mcu("P(f(z, x))", "P(f(z, x))", true);
+        get_mcu("P(f(z, x), y)", "P(f(z, x), x)", true);
+        get_mcu("P(f(z, x), x)", "P(f(z, x), y)", true);
+        get_mcu("P(f(z, x), x)", "P(f(z, x), f(y, g(x)))", false);
+        get_mcu("P(f(z, x), g(x, a))", "P(f(z, x), f(y, g(x, a)))", false);
+
+        get_mcu("P(f(z, x), f(w, z))", "P(f(z, x), f(y, g(x, a)))", true);
+        
+        get_mcu("Q(x, f(x))", "Q(z, z)", false);
+        get_mcu("Q(x, f(x))", "Q(a, z)", true);
+        get_mcu("Q(z, z)", "Q(a, z)", true);
+
+        get_mcu("R(c, x, f(x))", "R(c, y, y)", false);
+        get_mcu("R(f(x, y), z, h(z, y))", "R(f(y, x), g(y), w)", true);
+        get_mcu("R(z, f(x, b, z))", "R(h(x), f(g(a), y, z))", true);
+        get_mcu("R(x, f(y), h(z, x))", "R(f(y), x, h(f(y), f(z)))", false);
+        get_mcu("R(x_1, x_2, x_3, x_4)", "R(f(c, c), f(x_1, x_1), f(x_2, x_2), f(x_3, x_3))", true);
+
+        get_mcu("R(f(x_2, y_2), g(y_2), w_2)", "R(f(x_1, y_1), z_1, h(z_1, y_1))", true);
+    }
+
 }
